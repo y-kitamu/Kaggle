@@ -1,0 +1,10 @@
+/AutonomousDriving/
+/Titanic/
+*.egg-info
+venv/
+*.pyc
+__pycache__
+.ipynb_checkpoints/
+*.npz
+*.png
+*.jpg
