@@ -19,10 +19,8 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
     if type(device) is int:
         device = chainer.cuda.get_device(device)
 
-    if hasattr(iterator, "with_metadata"):
-        iterator.with_metadata = True
-    if hasattr(iterator, "is_one_hot"):
-        iterator.is_one_hot = False
+    if hasattr(iterator.dataset, "with_metadata"):
+        iterator.dataset.with_metadata = True
 
     output_dir = os.path.abspath(os.path.dirname(output_stem))
     if output_dir != "" and not os.path.exists(output_dir):
@@ -35,12 +33,13 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
     csv_writer.writerow(meta_headers + ["true", "pred"] + class_labels)
 
     for batch in iterator:
-        imgs, labels = concat_examples([b[:-1] for b in batch], device)
+        imgs, _ = concat_examples([b[:-1] for b in batch], device)
         with device:
             preds = predictor.predict(imgs)
             for pred, data in zip(preds, batch):
                 pred_label = pred.argmax()
-                csv_writer.writerow([data[-1][meta] for meta in meta_headers] + [data[1], pred_label] + pred.tolist())
+                csv_writer.writerow([data[-1][meta] for meta in meta_headers] + [data[1].argmax(), pred_label] +
+                                    pred.tolist())
     fileobj.close()
     df = pd.read_csv(output_fname)
     dataframes.append(df)

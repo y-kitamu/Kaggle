@@ -1,4 +1,5 @@
 import chainer
+import chainer.functions as F
 from chainer.backends import cuda
 import numpy as np
 import cv2
@@ -40,6 +41,7 @@ class Predictor(chainer.Chain):
         imgs = self.xp.asarray([self._prepare(img) for img in imgs])
 
         features = self.extractor.forward(imgs, **kwargs)
+        features = F.sigmoid(features)
 
         if isinstance(features, tuple):
             output = []
