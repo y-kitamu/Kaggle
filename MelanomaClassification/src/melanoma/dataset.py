@@ -14,15 +14,27 @@ DATASET_ROOT = Path.home() / "dataset" / "Melanoma"
 class Dataset(chainer.dataset.DatasetMixin):
     """Melanoma dataset
     """
-    DATA_ROOT = DATASET_ROOT / "train"
+    DATA_ROOT = DATASET_ROOT / "train" / "Normalized"
     METADATAS = ["image_name"]
 
-    def __init__(self, df, n_classes=None, img_size=None, with_metadata=False):
+    def __init__(self, df, n_classes=None, img_size=None, with_metadata=False, is_extend_malignant=True):
         self.df = df
-        self.n_data = len(df)
         self.img_size = img_size
         self.n_classes = n_classes
         self.with_metadata = with_metadata
+
+        if is_extend_malignant:
+            self._extend_malignant()
+
+        self.n_data = len(self.df)
+
+    def _extend_malignant(self, scale=5):
+        malignants = self.df[self.df.benign_malignant == "malignant"]
+        self.df = pd.concat([self.df] + [malignants] * scale)
+
+    def get_class_weights(self):
+        ratios = np.array([self.n_data / len(self.df[self.df.benign_malignant == l.name]) for l in constants.Labels])
+        return ratios / sum(ratios)
 
     def __len__(self):
         return self.n_data

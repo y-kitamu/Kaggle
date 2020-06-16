@@ -1,1 +1,1 @@
-from melanoma.models.efficientnet import *
+from melanoma.models.efficientnet.efficientnet import *
