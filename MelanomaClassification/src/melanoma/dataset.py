@@ -18,6 +18,10 @@ class Dataset(chainer.dataset.DatasetMixin):
     METADATAS = ["image_name"]
 
     def __init__(self, df, n_classes=None, img_size=None, with_metadata=False, is_extend_malignant=True):
+        """
+        Args:
+            img_size (tuple or list): (width, height)
+        """
         self.df = df
         self.img_size = img_size
         self.n_classes = n_classes
@@ -39,12 +43,16 @@ class Dataset(chainer.dataset.DatasetMixin):
     def __len__(self):
         return self.n_data
 
-    def get_example(self, idx):
-        row = self.df.iloc[idx]
-        img = cv2.imread(str(self.DATA_ROOT / f"{row.image_name}.jpg"))
+    def _read_img(self, img_filename):
+        img = cv2.imread(img_filename)
         if self.img_size:
             img = cv2.resize(img, self.img_size)
         img = img.astype(np.float32).transpose(2, 0, 1)
+        return img
+
+    def get_example(self, idx):
+        row = self.df.iloc[idx]
+        img = self._read_img(str(self.DATA_ROOT / f"{row.image_name}.jpg"))
         if self.n_classes:
             label = np.zeros(self.n_classes, dtype=np.int)
             label[constants.Labels[row.benign_malignant].value] = 1
@@ -58,6 +66,21 @@ class Dataset(chainer.dataset.DatasetMixin):
             return img, label
 
 
+class SubmissionDataset(Dataset):
+    DATA_ROOT = DATASET_ROOT / "test" / "Normalized"
+
+    def __init__(self, filename, img_size=None):
+        self.df = pd.read_csv(filename)
+        self.img_size = img_size
+
+    def __len__(self):
+        return len(self.df)
+
+    def get_example(self, idx):
+        row = self.df.iloc[idx]
+        return self._read_img(str(self.DATA_ROOT / f"{row.image_name}.jpg")), row.image_name
+
+
 class DatasetBuilder:
 
     def __init__(self,
@@ -66,6 +89,10 @@ class DatasetBuilder:
                  train_val_test=(0.8, 0.1, 0.1),
                  random_state=0,
                  img_size=None):
+        """
+        Args:
+            img_size (tuple or list): (width, height)
+        """
         self.n_classes = n_classes
         self.df = pd.read_csv(filename)
         self.ratios = train_val_test

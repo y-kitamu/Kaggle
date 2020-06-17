@@ -32,8 +32,9 @@ class TrainerBuilder():
         self.trainer.extend(self.evaluator, trigger=log_interval, priority=training.extension.PRIORITY_WRITER)
         self.trainer.extend(chainer.training.extensions.observe_lr(), trigger=log_interval)
         for name, optimizer in six.iteritems(self.trainer.updater.get_all_optimizers()):
-            self.trainer.extend(extensions.snapshot_object(optimizer.target,
-                                                           'snapshot_{}_model_{{.updater.epoch}}.npz'.format(name)),
+            if name != "main":
+                continue
+            self.trainer.extend(extensions.snapshot_object(optimizer.target, 'snapshot_model_{{.updater.epoch}}.npz'),
                                 trigger=snapshot_interval)
             if hasattr(target, "loss"):
                 self.trainer.extend(

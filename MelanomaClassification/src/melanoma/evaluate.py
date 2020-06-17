@@ -30,8 +30,9 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
     output_fname = "{}.csv".format(output_stem)
     fileobj = open(output_fname, "w")
     csv_writer = csv.writer(fileobj)
-    csv_writer.writerow(meta_headers + ["true", "pred"] + class_labels)
+    csv_writer.writerow(meta_headers + ["true", "pred"] + ["conf_{}".format(label) for label in class_labels])
 
+    iterator.reset()
     for batch in iterator:
         imgs, _ = concat_examples([b[:-1] for b in batch], device)
         with device:
@@ -44,6 +45,29 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
     df = pd.read_csv(output_fname)
     dataframes.append(df)
     show_metrics(df, class_labels)
+
+
+def evaluate_submission(predictor, iterator, output_stem, device):
+    if type(device) is int:
+        device = chainer.cuda.get_device(device)
+
+    output_dir = os.path.abspath(os.path.dirname(output_stem))
+    if output_dir != "" and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    output_fname = "{}.csv".format(output_stem)
+    fileobj = open(output_fname, "w")
+    csv_writer = csv.writer(fileobj)
+    csv_writer.writerow(["image_name", "target"])
+
+    iterator.reset()
+    for batch in iterator:
+        imgs, = concat_examples([b[:-1] for b in batch], device)
+        with device:
+            preds = predictor.predict(imgs)
+            for pred, data in zip(preds, batch):
+                csv_writer.writerow([data[-1], pred.argmax()])
+    fileobj.close()
 
 
 def show_metrics(df, class_labels, true_header="true", pred_header="pred"):
