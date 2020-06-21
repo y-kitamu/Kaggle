@@ -3,7 +3,9 @@ __version__ = ".".join(["{}".format(x) for x in VERSION])
 
 from melanoma import constants
 from melanoma import utility
+from melanoma import imageproc
 
+from melanoma import extensions
 from melanoma import trainer
 from melanoma import models
 from melanoma import dataset

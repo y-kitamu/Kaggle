@@ -187,17 +187,6 @@ class EfficientNet(chainer.Chain):
         x = self._swish(self._bn1(self._conv_head(x)))
         return x
 
-    def loss_func(self, *args, **kwargs):
-        t = args[-1]
-        self.y = self.forward(*args, **kwargs)
-        self.loss = F.sigmoid_cross_entropy(self.y, t)
-
-        with chainer.cuda.get_device_from_array(t):
-            self.accuracy = accuracy(self.y, t.argmax(axis=1))
-        reporter.report({'loss': self.loss}, self)
-        reporter.report({'accuracy': self.accuracy}, self)
-        return self.loss
-
 
 class EfficientNetCW(EfficientNet):
     """EfficientNet : loss func with class weights version

@@ -3,8 +3,34 @@ import csv
 
 import chainer
 from chainer.dataset.convert import concat_examples
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, roc_auc_score
 import pandas as pd
+
+from melanoma import constants
+
+
+def evaluate_ensemble(predictor,
+                      iterator,
+                      class_labels,
+                      output_stem,
+                      npz_files,
+                      device=-1,
+                      meta_header=["image_name"]):
+    dataframes = []
+    for npz_file in npz_files:
+        chainer.serializers.load_npz(npz_file, predictor.extractor)
+        footer = npz_file.split("/")[-2]
+        output = f"{output_stem}_{footer}"
+        dataframes.append(evaluate(
+            predictor,
+            iterator,
+            class_labels,
+            output,
+            device,
+        ))
+    print("\nEnsemble Result : \n")
+    df = pd.concat(dataframes)
+    show_metrics(df, class_labels)
 
 
 def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_headers=["image_name"]):
@@ -16,6 +42,10 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
         output_stem (string) : save output csv to `<output_stem>.csv`
         meta_headers (list of string) : header name of metadatas that write to output csv
     """
+    if device >= 0:
+        predictor.to_gpu(device)
+        predictor.extractor.to_gpu(device)
+
     if type(device) is int:
         device = chainer.cuda.get_device(device)
 
@@ -26,7 +56,6 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
     if output_dir != "" and not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    dataframes = []
     output_fname = "{}.csv".format(output_stem)
     fileobj = open(output_fname, "w")
     csv_writer = csv.writer(fileobj)
@@ -43,11 +72,45 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
                                     pred.tolist())
     fileobj.close()
     df = pd.read_csv(output_fname)
-    dataframes.append(df)
     show_metrics(df, class_labels)
+    return df
 
 
-def evaluate_submission(predictor, iterator, output_stem, device):
+def evaluate_submission(predictor, iterator, output_stem, device, filenames):
+    if isinstance(filenames, str):
+        filenames = [filenames]
+    output_list = []
+    for idx, filename in enumerate(sorted(filenames)):
+        chainer.serializers.load_npz(filename, predictor.extractor)
+        if device >= 0:
+            predictor.to_gpu()
+            predictor.extractor.to_gpu()
+        output_list.append(_evaluate_submission(predictor, iterator, f"{output_stem}_{idx:02d}", device))
+
+    _sum_predict(output_list, output_stem)
+
+
+def _sum_predict(output_list, output_stem):
+    image_preds = {}
+    for fname in output_list:
+        print(fname)
+        with open(fname, 'r') as f:
+            csv_reader = csv.reader(f)
+            next(csv_reader)
+            for row in csv_reader:
+                if row[0] not in image_preds:
+                    image_preds[row[0]] = []
+                image_preds[row[0]].append(row[1])
+
+    output_filename = f"{output_stem}.csv"
+    with open(output_filename, "w") as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(["image_name", "target"])
+        for key, val in image_preds.items():
+            csv_writer.writerow([key, sum([float(v) for v in val]) / len(val)])
+
+
+def _evaluate_submission(predictor, iterator, output_stem, device):
     if type(device) is int:
         device = chainer.cuda.get_device(device)
 
@@ -66,17 +129,23 @@ def evaluate_submission(predictor, iterator, output_stem, device):
         with device:
             preds = predictor.predict(imgs)
             for pred, data in zip(preds, batch):
-                csv_writer.writerow([data[-1], pred.argmax()])
+                csv_writer.writerow([data[-1], pred[1]])
     fileobj.close()
+    return output_fname
 
 
-def show_metrics(df, class_labels, true_header="true", pred_header="pred"):
-    """Show accuracy, confusion_matrix, precision, recall, f1
+def show_metrics(df,
+                 class_labels,
+                 true_header="true",
+                 pred_header="pred",
+                 roc_header=f"conf_{constants.Labels.malignant.name}"):
+    """Show accuracy, confusion_matrix, precision, recall, f1, ROC
     Args :
         df (pd.DataFrame) : cnn result dataframe
         class_labels (list of string) :
         true_header (string) : dataframe's header name of true label
         pred_header (string) : dataframe's header name of predict label
+        roc_header (string)  : dataframe's header name of calculating roc
     """
     accuracy = accuracy_score(df[true_header], df[pred_header])
     labels = [i for i in range(len(class_labels))]
@@ -89,3 +158,5 @@ def show_metrics(df, class_labels, true_header="true", pred_header="pred"):
                               labels=range(len(class_labels)),
                               target_names=class_labels,
                               digits=3))
+    roc = roc_auc_score(df[true_header], df[roc_header])
+    print(f"ROC-AUC score : {roc:.3f}")

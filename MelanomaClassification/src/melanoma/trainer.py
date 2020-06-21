@@ -4,6 +4,8 @@ from chainer import training
 from chainer.training import extensions
 from chainer.training import triggers
 
+from melanoma.extensions import LRScheduler
+
 
 def serialize(file_path, obj):
     print("save {}".format(file_path))
@@ -30,26 +32,24 @@ class TrainerBuilder():
         snapshot_interval = (10, 'epoch')
 
         self.trainer.extend(self.evaluator, trigger=log_interval, priority=training.extension.PRIORITY_WRITER)
-        self.trainer.extend(chainer.training.extensions.observe_lr(), trigger=log_interval)
+        self.trainer.extend(chainer.training.extensions.observe_lr(), trigger=print_interval)
         for name, optimizer in six.iteritems(self.trainer.updater.get_all_optimizers()):
             if name != "main":
                 continue
-            self.trainer.extend(extensions.snapshot_object(optimizer.target, 'snapshot_model_{{.updater.epoch}}.npz'),
+            self.trainer.extend(extensions.snapshot_object(optimizer.target, 'snapshot_model_{.updater.epoch}.npz'),
                                 trigger=snapshot_interval)
-            if hasattr(target, "loss"):
-                self.trainer.extend(
-                    extensions.snapshot_object(optimizer.target, 'snapshot_model_loss.npz', savefun=serialize),
-                    trigger=triggers.MinValueTrigger("validation/main/loss", trigger=log_interval),
-                    priority=training.extension.PRIORITY_READER,
-                )
-            if hasattr(target, "accuracy"):
-                self.trainer.extend(
-                    extensions.snapshot_object(optimizer.target, "snapshot_model_accuracy.npz", savefun=serialize),
-                    trigger=triggers.MaxValueTrigger("validation/main/accuracy", trigger=log_interval),
-                    priority=training.extension.PRIORITY_READER,
-                )
+            self.trainer.extend(
+                extensions.snapshot_object(optimizer.target, 'snapshot_model_loss.npz', savefun=serialize),
+                trigger=triggers.MinValueTrigger("validation/main/loss", trigger=log_interval),
+                priority=training.extension.PRIORITY_READER,
+            )
+            self.trainer.extend(
+                extensions.snapshot_object(optimizer.target, "snapshot_model_accuracy.npz", savefun=serialize),
+                trigger=triggers.MaxValueTrigger("validation/main/accuracy", trigger=log_interval),
+                priority=training.extension.PRIORITY_READER,
+            )
         self.trainer.extend(extensions.ProgressBar())
-        self.trainer.extend(extensions.LogReport(trigger=log_interval))
+        self.trainer.extend(extensions.LogReport(trigger=print_interval))
         self.trainer.extend(extensions.PrintReport([
             'iteration', 'epoch', 'elapsed_time', 'lr', 'main/loss', 'validation/main/loss', 'main/accuracy',
             'validation/main/accuracy'
@@ -62,3 +62,4 @@ class TrainerBuilder():
             extensions.PlotReport(["main/accuracy", "validation/main/accuracy"],
                                   x_key="epoch",
                                   filename="accuracy.png"))
+        # self.trainer.extend(LRScheduler.WarmUpCosineAnnealing("alpha"))

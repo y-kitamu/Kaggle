@@ -23,7 +23,7 @@ class Predictor(chainer.Chain):
     def _prepare(self, img):
         # [height, width, channel] -> [channel, height, width]
         if img.shape[0] == 3 or img.shape[0] == 1:
-            img = img.transpose(1, 2, 0).astype(np.uint8)
+            img = img.transpose(1, 2, 0)
         img = cv2.resize(img, self.img_size)
         img = img.transpose(2, 0, 1).astype(np.float32)
         if self.preprocess is not None:
@@ -40,8 +40,9 @@ class Predictor(chainer.Chain):
         imgs = cuda.to_cpu(imgs)
         imgs = self.xp.asarray([self._prepare(img) for img in imgs])
 
-        features = self.extractor.forward(imgs, **kwargs)
-        features = F.sigmoid(features)
+        with chainer.using_config("train", False), chainer.using_config('enable_backprop', False):
+            features = self.extractor.forward(imgs, **kwargs)
+            features = F.sigmoid(features)
 
         if isinstance(features, tuple):
             output = []

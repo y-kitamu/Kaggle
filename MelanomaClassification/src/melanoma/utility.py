@@ -4,11 +4,11 @@ import pdb, traceback, sys, code
 def start_pdb(func):
     try:
         res = func()
+        return res
     except:
         extype, value, tb = sys.exc_info()
         traceback.print_exc()
         pdb.post_mortem(tb)
-    return res
 
 
 def start_ipython(func):
