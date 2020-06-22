@@ -30,8 +30,8 @@ def standard_augmentation(img):
     """
     img = vertical_flip(img)
     img = horizontal_flip(img)
-    img = vertical_shift(img)
-    img = horizontal_shift(img)
+    # img = vertical_shift(img)
+    # img = horizontal_shift(img)
     return img
 
 

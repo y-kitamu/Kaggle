@@ -198,19 +198,3 @@ class EfficientNetCW(EfficientNet):
         self.class_weights = class_weights
         if self.class_weights is None:
             self.class_weights = np.array([1.0 / self.n_classes] * self.n_classes)
-
-    def loss_func(self, *args, **kwargs):
-        t = args[-1]
-        self.y = self.forward(*args, **kwargs)
-        losses = F.sigmoid_cross_entropy(self.y, t, reduce='no')
-        labels = t.argmax(axis=1)
-        self.loss = 0
-        for i in range(self.n_classes):
-            self.loss += F.sum(self.class_weights[i] * losses[labels == i])
-        self.loss /= len(labels)
-
-        with chainer.cuda.get_device_from_array(t):
-            self.accuracy = accuracy(self.y, t.argmax(axis=1))
-        reporter.report({'loss': self.loss}, self)
-        reporter.report({'accuracy': self.accuracy}, self)
-        return self.loss

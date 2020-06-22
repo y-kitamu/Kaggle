@@ -32,7 +32,9 @@ class Dataset(chainer.dataset.DatasetMixin):
                  img_size=None,
                  with_metadata=False,
                  is_extend_malignant=True,
-                 preprocess=[imageproc.normalize]):
+                 preprocess=[imageproc.normalize],
+                 upsample_scale=2,
+                 downsample_scale=10):
         self.df = df
         self.img_size = img_size
         self.n_classes = n_classes
@@ -40,17 +42,20 @@ class Dataset(chainer.dataset.DatasetMixin):
         self.preprocess = preprocess
 
         if is_extend_malignant:
-            self._extend_malignant()
+            self._downsample_benign(downsample_scale)
+            self._upsample_malignant(upsample_scale)
 
         self.n_data = len(self.df)
 
-    def _extend_malignant(self, scale=None):
-        # malignants = self.df[self.df.benign_malignant == "malignant"]
-        # scale = scale or int(0.5 * len(self.df) / len(malignants))
-        # self.df = pd.concat([self.df] + [malignants] * scale)
+    def _upsample_malignant(self, scale):
+        malignants = self.df[self.df.benign_malignant == "malignant"]
+        scale = scale or int(0.5 * len(self.df) / len(malignants))
+        self.df = pd.concat([self.df] + [malignants] * scale)
+
+    def _downsample_benign(self, scale):
         df_0 = self.df[self.df.target == constants.Labels.benign.value]
         df_1 = self.df[self.df.target == constants.Labels.malignant.value]
-        sample = min(len(df_1) * 10, len(df_0))
+        sample = min(len(df_1) * scale, len(df_0))
         df_0 = df_0.sample(sample, random_state=0)
         self.df = pd.concat([df_0, df_1])
 
