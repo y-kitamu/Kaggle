@@ -15,6 +15,13 @@ DATASET_ROOT = Path.home() / "dataset" / "Melanoma"
 
 class Dataset(chainer.dataset.DatasetMixin):
     """Melanoma dataset
+    Args:
+        df (pandas.DataFrame) : dataset
+        n_classes (int)
+        img_size (tuple or list): (width, height)
+        with_metadata (Bool) : If True, `get_example` returns with metadata.
+        is_extend_malignant (Bool) : If True, return,
+        preprocess (list of function or function) : preprocess (augmentation) image function object
     """
     DATA_ROOT = DATASET_ROOT / "train" / "Resized"
     METADATAS = ["image_name"]
@@ -26,15 +33,6 @@ class Dataset(chainer.dataset.DatasetMixin):
                  with_metadata=False,
                  is_extend_malignant=True,
                  preprocess=[imageproc.normalize]):
-        """
-        Args:
-            df (pandas.DataFrame) : dataset
-            n_classes (int)
-            img_size (tuple or list): (width, height)
-            with_metadata (Bool) : If True, `get_example` returns with metadata.
-            is_extend_malignant (Bool) : If True, return,
-            preprocess (list of function or function) : preprocess (augmentation) image function object
-        """
         self.df = df
         self.img_size = img_size
         self.n_classes = n_classes
@@ -47,12 +45,17 @@ class Dataset(chainer.dataset.DatasetMixin):
         self.n_data = len(self.df)
 
     def _extend_malignant(self, scale=None):
-        malignants = self.df[self.df.benign_malignant == "malignant"]
-        scale = scale or int(0.5 * len(self.df) / len(malignants))
-        self.df = pd.concat([self.df] + [malignants] * scale)
+        # malignants = self.df[self.df.benign_malignant == "malignant"]
+        # scale = scale or int(0.5 * len(self.df) / len(malignants))
+        # self.df = pd.concat([self.df] + [malignants] * scale)
+        df_0 = self.df[self.df.target == constants.Labels.benign.value]
+        df_1 = self.df[self.df.target == constants.Labels.malignant.value]
+        sample = min(len(df_1) * 10, len(df_0))
+        df_0 = df_0.sample(sample, random_state=0)
+        self.df = pd.concat([df_0, df_1])
 
     def get_class_weights(self):
-        ratios = np.array([self.n_data / len(self.df[self.df.benign_malignant == l.name]) for l in constants.Labels])
+        ratios = np.array([self.n_data / len(self.df[self.df.target == l.value]) for l in constants.Labels])
         return ratios / sum(ratios)
 
     def __len__(self):
@@ -76,9 +79,9 @@ class Dataset(chainer.dataset.DatasetMixin):
         img = self._read_img(str(self.DATA_ROOT / f"{row.image_name}.png"))
         if self.n_classes:
             label = np.zeros(self.n_classes, dtype=np.int)
-            label[constants.Labels[row.benign_malignant].value] = 1
+            label[row.target] = 1
         else:
-            label = constants.Labels[row.benign_malignant].value
+            label = row.target
 
         if self.with_metadata:
             metadata = {key: row[key] for key in self.METADATAS}
