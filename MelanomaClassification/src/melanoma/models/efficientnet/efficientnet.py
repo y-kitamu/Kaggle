@@ -4,11 +4,10 @@ from collections import namedtuple
 import chainer
 import chainer.links as L
 import chainer.functions as F
-from chainer.functions import accuracy
-from chainer import reporter
 import numpy as np
 
 from melanoma.models.efficientnet.mbconv import MBConvBlock
+from melanoma.functions import mixup
 
 GlobalParams = namedtuple("GlobalParams", [
     "width_coefficient",
@@ -39,6 +38,17 @@ EfficientNetB0 = GlobalParams(
     min_depth=None,
     batch_norm_epsilon=1e-3,
     dropout_rate=0.2,
+    drop_connect_rate=0.2,
+    num_classes=2,
+)
+
+EfficientNetB3 = GlobalParams(
+    width_coefficient=1.2,
+    depth_coefficient=1.4,
+    depth_divisor=8,
+    min_depth=None,
+    batch_norm_epsilon=1e-3,
+    dropout_rate=0.3,
     drop_connect_rate=0.2,
     num_classes=2,
 )
@@ -198,3 +208,46 @@ class EfficientNetCW(EfficientNet):
         self.class_weights = class_weights
         if self.class_weights is None:
             self.class_weights = np.array([1.0 / self.n_classes] * self.n_classes)
+
+
+class EfficientNetMixUp(EfficientNet):
+    """Mixup EfficientNet
+
+
+    """
+
+    def __init__(self,
+                 blocks_args=DEFAULT_BLOCKS_ARGS,
+                 global_params=EfficientNetB0,
+                 mixup_alpha=0.2,
+                 mixup_layer_idx=None):
+        super().__init__(blocks_args, global_params)
+        self.mixup_alpha = mixup_alpha
+        self.mixup_layer = mixup_layer_idx or np.random.randint(0, len(self._blocks))
+
+    def forward(self, inputs, target=None, lam=None, **kwargs):
+        """EfficientNet's forward function
+        """
+        is_train = chainer.config.train
+        if is_train and self.mixup_layer == 0:
+            x, t_a, t_b = mixup(inputs, target, lam)
+
+        x = self._swish(self._bn0(self._conv_stem(inputs)))
+
+        for idx, block in enumerate(self._blocks):
+            drop_connect_rate = self._global_params.drop_connect_rate
+            if drop_connect_rate:
+                drop_connect_rate *= float(idx) / len(self._blocks)
+            x = block(x, drop_connect_rate=drop_connect_rate)
+            if is_train and self.mixup_layer == idx:
+                x, t_a, t_b = mixup(x, target, lam)
+
+        x = self._swish(self._bn1(self._conv_head(x)))
+
+        x = self._avg_pooling(x)
+        x = self._dropout(x)
+        x = self._fc(x)
+
+        if is_train:
+            return x, t_a, t_b
+        return x

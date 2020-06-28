@@ -1,6 +1,7 @@
 import chainer
 import chainer.functions as F
 from chainer import reporter
+import numpy as np
 
 
 class BaseLoss():
@@ -25,6 +26,31 @@ class SigmoidLoss(BaseLoss):
 
     def _loss_func(self, x, t):
         loss = F.sigmoid_cross_entropy(x, t)
+        return loss
+
+
+class MixupLoss(BaseLoss):
+
+    def __call__(self, *args, **kwargs):
+        if chainer.config.train:
+            lam = np.random.beta(self.model.mixup_alpha, self.model.mixup_alpha)
+            x, t_a, t_b = self.model.forward(args[0], args[1], lam)
+            loss = self._loss_func(x, t_a, t_b, lam)
+            with chainer.cuda.get_device_from_array(t_a):
+                accuracy = F.accuracy(x, (lam * t_a + (1 - lam) * t_b).argmax(axis=1))
+        else:
+            x = self.model.forward(args[0])
+            t = args[1]
+            loss = F.sigmoid_cross_entropy(x, t)
+            with chainer.cuda.get_device_from_array(t):
+                accuracy = F.accuracy(x, t.argmax(axis=1))
+
+        reporter.report({'loss': loss}, self.model)
+        reporter.report({'accuracy': accuracy}, self.model)
+        return loss
+
+    def _loss_func(self, x, t_a, t_b, lam):
+        loss = lam * F.sigmoid_cross_entropy(x, t_a) + (1 - lam) * F.sigmoid_cross_entropy(x, t_b)
         return loss
 
 

@@ -8,7 +8,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from melanoma import constants
-from melanoma import imageproc
+from melanoma import augmentations
 
 DATASET_ROOT = Path.home() / "dataset" / "Melanoma"
 
@@ -21,7 +21,6 @@ class Dataset(chainer.dataset.DatasetMixin):
         img_size (tuple or list): (width, height)
         with_metadata (Bool) : If True, `get_example` returns with metadata.
         is_extend_malignant (Bool) : If True, return,
-        preprocess (list of function or function) : preprocess (augmentation) image function object
     """
     DATA_ROOT = DATASET_ROOT / "train" / "Resized"
     METADATAS = ["image_name"]
@@ -32,18 +31,17 @@ class Dataset(chainer.dataset.DatasetMixin):
                  img_size=None,
                  with_metadata=False,
                  is_extend_malignant=True,
-                 preprocess=[imageproc.normalize],
                  upsample_scale=2,
                  downsample_scale=10):
         self.df = df
         self.img_size = img_size
         self.n_classes = n_classes
         self.with_metadata = with_metadata
-        self.preprocess = preprocess
 
         if is_extend_malignant:
-            self._downsample_benign(downsample_scale)
-            self._upsample_malignant(upsample_scale)
+            # self._downsample_benign(downsample_scale)
+            # self._upsample_malignant(upsample_scale)
+            self._upsample_malignant(None)
 
         self.n_data = len(self.df)
 
@@ -70,12 +68,6 @@ class Dataset(chainer.dataset.DatasetMixin):
         img = cv2.imread(img_filename)
         if self.img_size:
             img = cv2.resize(img, self.img_size)
-        if self.preprocess is not None:
-            if isinstance(self.preprocess, (list, tuple)):
-                for pp in self.preprocess:
-                    img = pp(img)
-            else:
-                img = self.preprocess(img)
         img = img.astype(np.float32).transpose(2, 0, 1)
         return img
 
@@ -103,7 +95,8 @@ class SubmissionDataset(Dataset):
 
     def get_example(self, idx):
         row = self.df.iloc[idx]
-        return self._read_img(str(self.DATA_ROOT / f"{row.image_name}.png")), row.image_name
+        data = (self._read_img(str(self.DATA_ROOT / f"{row.image_name}.png")), row.image_name)
+        return data
 
 
 class DatasetBuilder:
@@ -114,7 +107,8 @@ class DatasetBuilder:
                  train_val_test=(0.8, 0.1, 0.1),
                  random_state=0,
                  img_size=None,
-                 preprocess=[imageproc.normalize, imageproc.standard_augmentation],
+                 augmentations=[augmentations.base.standard_aug_transform],
+                 transforms=[augmentations.base.normalize_transform],
                  **kwargs):
         """
         Args:
@@ -128,7 +122,8 @@ class DatasetBuilder:
         self.ratios = train_val_test
         self.random_state = random_state
         self.img_size = img_size
-        self.preprocess = preprocess
+        self.augmentations = augmentations
+        self.transforms = transforms
         self.kwargs = kwargs
 
     def build(self):
@@ -159,9 +154,16 @@ class DatasetBuilder:
         test_dataset = Dataset(self.df[self.df.patient_id.map(lambda x: x in test)],
                                n_classes=self.n_classes,
                                img_size=self.img_size,
-                               is_extend_malignant=False)
-        train_dataset.preprocess = self.preprocess
-        val_dataset.preprocess = self.preprocess
+                               is_extend_malignant=False,
+                               with_metadata=True)
+
+        for aug in self.augmentations:
+            train_dataset = chainer.datasets.TransformDataset(train_dataset, aug)
+
+        for trans in self.transforms:
+            train_dataset = chainer.datasets.TransformDataset(train_dataset, trans)
+            val_dataset = chainer.datasets.TransformDataset(val_dataset, trans)
+            test_dataset = chainer.datasets.TransformDataset(test_dataset, trans)
 
         return train_dataset, val_dataset, test_dataset
 
