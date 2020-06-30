@@ -52,7 +52,7 @@ class TrainerBuilder():
         self.trainer.extend(extensions.LogReport(trigger=print_interval))
         self.trainer.extend(extensions.PrintReport([
             'iteration', 'epoch', 'elapsed_time', 'lr', 'main/loss', 'validation/main/loss', 'main/accuracy',
-            'validation/main/accuracy'
+            'validation/main/accuracy', 'validation/main/roc'
         ]),
                             trigger=print_interval)
 

@@ -8,24 +8,49 @@ class BaseLoss():
 
     def __init__(self, model):
         self.model = model
+        self.true_labels = None
+        self.confs = None
 
     def __call__(self, *args, **kwargs):
-        t = args[-1]
-        x = self.model.forward(args[0])
+        x = self.model.forward(args[:-1])
 
-        loss = self._loss_func(x, t)
+        loss = self._loss_func(x, args[-1])
         reporter.report({'loss': loss}, self.model)
 
+        t = args[-1] if len(args[-1].shape) == 1 else args[-1].argmax(axis=-1)
         with chainer.cuda.get_device_from_array(t):
-            accuracy = F.accuracy(x, t.argmax(axis=1))
+            if x.shape[1] == 1:
+                accuracy = sum((x.data.flatten() > 0).astype(int) == t) / x.shape[0]
+            else:
+                accuracy = F.accuracy(x, t)
         reporter.report({'accuracy': accuracy}, self.model)
+
+        if self.true_labels is None:
+            self.true_labels = t
+        else:
+            self.true_labels = self.model.xp.hstack((self.true_labels, t))
+        if self.confs is None:
+            self.confs = x.data.transpose()
+        else:
+            self.confs = self.model.xp.hstack((self.confs, x.data.transpose()))
         return loss
 
 
 class SigmoidLoss(BaseLoss):
 
     def _loss_func(self, x, t):
+        if x.shape[1] == 1:
+            x = x.data.flatten()
         loss = F.sigmoid_cross_entropy(x, t)
+        return loss
+
+
+class SoftmaxLoss(BaseLoss):
+
+    def _loss_func(self, x, t):
+        if len(t.shape) > 1:
+            t = t.argmax(axis=-1)
+        loss = F.softmax_cross_entropy(x, t)
         return loss
 
 
@@ -38,15 +63,10 @@ class MixupLoss(BaseLoss):
             loss = self._loss_func(x, t_a, t_b, lam)
             with chainer.cuda.get_device_from_array(t_a):
                 accuracy = F.accuracy(x, (lam * t_a + (1 - lam) * t_b).argmax(axis=1))
+            reporter.report({'loss': loss}, self.model)
+            reporter.report({'accuracy': accuracy}, self.model)
         else:
-            x = self.model.forward(args[0])
-            t = args[1]
-            loss = F.sigmoid_cross_entropy(x, t)
-            with chainer.cuda.get_device_from_array(t):
-                accuracy = F.accuracy(x, t.argmax(axis=1))
-
-        reporter.report({'loss': loss}, self.model)
-        reporter.report({'accuracy': accuracy}, self.model)
+            super().__call__(args, kwargs)
         return loss
 
     def _loss_func(self, x, t_a, t_b, lam):

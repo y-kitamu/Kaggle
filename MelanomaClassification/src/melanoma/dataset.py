@@ -1,5 +1,6 @@
 import random
 from pathlib import Path
+import warnings
 
 import chainer
 import cv2
@@ -13,6 +14,19 @@ from melanoma import augmentations
 DATASET_ROOT = Path.home() / "dataset" / "Melanoma"
 
 
+def onehot_encode(df):
+    anatom_keys = sorted(df.anatom_site_general_challenge.fillna("Nan").unique())
+    for idx, key in enumerate(anatom_keys):
+        df["site_{}".format(key)] = np.array(df.anatom_site_general_challenge == key).astype(np.uint8)
+    warnings.simplefilter('ignore')
+    df["sex"] = df.sex.map({"male": 1, "female": 0})
+    df["sex"] = df.sex.fillna(-1)
+    df["age_approx"] /= df.age_approx.max()
+    df["age_approx"] = df.age_approx.fillna(0)
+    warnings.resetwarnings()
+    return df
+
+
 class Dataset(chainer.dataset.DatasetMixin):
     """Melanoma dataset
     Args:
@@ -23,7 +37,11 @@ class Dataset(chainer.dataset.DatasetMixin):
         is_extend_malignant (Bool) : If True, return,
     """
     DATA_ROOT = DATASET_ROOT / "train" / "Resized"
-    METADATAS = ["image_name"]
+    METADATAS = ["image_name"]  # csv header name of meta info which is writeen in output csv
+    METAFEATURES = [
+        "sex", "age_approx", 'site_head/neck', 'site_upper extremity', 'site_lower extremity', 'site_torso',
+        'site_Nan', 'site_palms/soles', 'site_oral/genital'
+    ]  # input to cnn
 
     def __init__(self,
                  df,
@@ -32,11 +50,13 @@ class Dataset(chainer.dataset.DatasetMixin):
                  with_metadata=False,
                  is_extend_malignant=True,
                  upsample_scale=2,
-                 downsample_scale=10):
-        self.df = df
+                 downsample_scale=10,
+                 is_onehot_label=False):
+        self.df = onehot_encode(df)
         self.img_size = img_size
         self.n_classes = n_classes
         self.with_metadata = with_metadata
+        self.is_onehot_label = is_onehot_label
 
         if is_extend_malignant:
             # self._downsample_benign(downsample_scale)
@@ -74,7 +94,8 @@ class Dataset(chainer.dataset.DatasetMixin):
     def get_example(self, idx):
         row = self.df.iloc[idx]
         img = self._read_img(str(self.DATA_ROOT / f"{row.image_name}.png"))
-        if self.n_classes:
+        metafeatures = row[self.METAFEATURES].to_numpy().astype(np.float32)
+        if self.is_onehot_label and self.n_classes:
             label = np.zeros(self.n_classes, dtype=np.int)
             label[row.target] = 1
         else:
@@ -82,9 +103,9 @@ class Dataset(chainer.dataset.DatasetMixin):
 
         if self.with_metadata:
             metadata = {key: row[key] for key in self.METADATAS}
-            return img, label, metadata
+            return img, metafeatures, label, metadata
         else:
-            return img, label
+            return img, metafeatures, label
 
 
 class SubmissionDataset(Dataset):

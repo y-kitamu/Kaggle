@@ -63,13 +63,19 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
 
     iterator.reset()
     for batch in iterator:
-        imgs, _ = concat_examples([b[:-1] for b in batch], device)
+        inputs = concat_examples([b[:-1] for b in batch], device)
         with device:
-            preds = predictor.predict(imgs)
-            for pred, data in zip(preds, batch):
-                pred_label = pred.argmax()
-                csv_writer.writerow([data[-1][meta] for meta in meta_headers] + [data[1].argmax(), pred_label] +
-                                    pred.tolist())
+            preds = predictor.predict(*inputs)
+            for pred, data, label in zip(preds, batch, inputs[-1]):
+                if pred.shape[-1] > 1:
+                    pred_label = pred.argmax(axis=-1)
+                    confs = pred.to_list()
+                else:
+                    pred_label = int(pred.round())
+                    confs = [pred]
+                if label.shape[-1] > 1:
+                    label = label.argmax(axis=-1)
+                csv_writer.writerow([data[-1][meta] for meta in meta_headers] + [label, pred_label] + confs)
     fileobj.close()
     df = pd.read_csv(output_fname)
     show_metrics(df, class_labels)
@@ -135,7 +141,7 @@ def _evaluate_submission(predictor, iterator, output_stem, device):
 
 
 def show_metrics(df,
-                 class_labels,
+                 class_labels=None,
                  true_header="true",
                  pred_header="pred",
                  roc_header=f"conf_{constants.Labels.malignant.name}"):
@@ -148,6 +154,8 @@ def show_metrics(df,
         roc_header (string)  : dataframe's header name of calculating roc
     """
     accuracy = accuracy_score(df[true_header], df[pred_header])
+    if class_labels is None:
+        class_labels = sorted(set(df[true_header].unique() + df[pred_header].unique()))
     labels = [i for i in range(len(class_labels))]
     cm = confusion_matrix(df[true_header], df[pred_header], labels=labels)
     print("Accuracy : {:.3f}".format(accuracy))

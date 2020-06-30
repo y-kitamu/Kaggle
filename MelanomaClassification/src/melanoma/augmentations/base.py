@@ -5,7 +5,9 @@ from melanoma import constants
 
 
 def standard_aug_transform(data):
-    img, label = data
+    """training augmentations
+    """
+    img, metas, label = data
 
     # img_size = img.shape[1:]
     img = chainercv.transforms.random_flip(img, y_random=True, x_random=True)
@@ -17,7 +19,7 @@ def standard_aug_transform(data):
     # img = chainercv.transforms.random_expand(img, max_ratio=2)
     # img = chainercv.transforms.resize(img, img_size)
 
-    return img, label
+    return img, metas, label
 
 
 def normalize_transform(data):
