@@ -34,7 +34,7 @@ class Predictor(chainer.Chain):
         super().to_gpu(device)
         self.extractor.to_gpu(device)
 
-    def to_cpu(self, device):
+    def to_cpu(self):
         super().to_cpu()
         self.extractor.to_cpu()
 
@@ -51,7 +51,8 @@ class Predictor(chainer.Chain):
         imgs = self.xp.asarray([self._prepare(img) for img in imgs])
 
         with chainer.using_config("train", False), chainer.using_config('enable_backprop', False):
-            features = self.extractor.forward((imgs, metas), **kwargs)
+            features = self.extractor.forward(imgs, **kwargs)
+            # features = self.extractor.forward(imgs, metas, **kwargs)
             features = F.sigmoid(features)
 
         if isinstance(features, tuple):

@@ -6,7 +6,7 @@ import chainer
 import cv2
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 
 from melanoma import constants
 from melanoma import augmentations
@@ -14,14 +14,23 @@ from melanoma import augmentations
 DATASET_ROOT = Path.home() / "dataset" / "Melanoma"
 
 
+def create_anatom_keys(datasets=[DATASET_ROOT / "train.csv", DATASET_ROOT / "test.csv"]):
+    dfs = [pd.read_csv(fname) for fname in datasets]
+    df = pd.concat(dfs)
+    return sorted(df.anatom_site_general_challenge.fillna("Nan").unique()), df.age_approx.max()
+
+
+ANATOM_KEYS, MAX_AGE = create_anatom_keys()
+
+
 def onehot_encode(df):
-    anatom_keys = sorted(df.anatom_site_general_challenge.fillna("Nan").unique())
-    for idx, key in enumerate(anatom_keys):
+    df.anatom_site_general_challenge.fillna("Nan")
+    for idx, key in enumerate(ANATOM_KEYS):
         df["site_{}".format(key)] = np.array(df.anatom_site_general_challenge == key).astype(np.uint8)
     warnings.simplefilter('ignore')
     df["sex"] = df.sex.map({"male": 1, "female": 0})
     df["sex"] = df.sex.fillna(-1)
-    df["age_approx"] /= df.age_approx.max()
+    df["age_approx"] /= MAX_AGE
     df["age_approx"] = df.age_approx.fillna(0)
     warnings.resetwarnings()
     return df
@@ -37,6 +46,7 @@ class Dataset(chainer.dataset.DatasetMixin):
         is_extend_malignant (Bool) : If True, return,
     """
     DATA_ROOT = DATASET_ROOT / "train" / "Resized"
+    IMAGE_EXT = ".png"
     METADATAS = ["image_name"]  # csv header name of meta info which is writeen in output csv
     METAFEATURES = [
         "sex", "age_approx", 'site_head/neck', 'site_upper extremity', 'site_lower extremity', 'site_torso',
@@ -93,7 +103,7 @@ class Dataset(chainer.dataset.DatasetMixin):
 
     def get_example(self, idx):
         row = self.df.iloc[idx]
-        img = self._read_img(str(self.DATA_ROOT / f"{row.image_name}.png"))
+        img = self._read_img(str(self.DATA_ROOT / f"{row.image_name}{self.IMAGE_EXT}"))
         metafeatures = row[self.METAFEATURES].to_numpy().astype(np.float32)
         if self.is_onehot_label and self.n_classes:
             label = np.zeros(self.n_classes, dtype=np.int)
@@ -116,8 +126,9 @@ class SubmissionDataset(Dataset):
 
     def get_example(self, idx):
         row = self.df.iloc[idx]
-        data = (self._read_img(str(self.DATA_ROOT / f"{row.image_name}.png")), row.image_name)
-        return data
+        img = self._read_img(str(self.DATA_ROOT / f"{row.image_name}{self.IMAGE_EXT}"))
+        metafeatures = row[self.METAFEATURES].to_numpy().astype(np.float32)
+        return img, metafeatures, row.image_name
 
 
 class DatasetBuilder:
@@ -130,6 +141,7 @@ class DatasetBuilder:
                  img_size=None,
                  augmentations=[augmentations.base.standard_aug_transform],
                  transforms=[augmentations.base.normalize_transform],
+                 is_onehot=True,
                  **kwargs):
         """
         Args:
@@ -145,6 +157,7 @@ class DatasetBuilder:
         self.img_size = img_size
         self.augmentations = augmentations
         self.transforms = transforms
+        self.is_onehot = is_onehot
         self.kwargs = kwargs
 
     def build(self):
@@ -167,15 +180,18 @@ class DatasetBuilder:
         train_dataset = Dataset(self.df[self.df.patient_id.map(lambda x: x in train)],
                                 n_classes=self.n_classes,
                                 img_size=self.img_size,
+                                is_onehot_label=self.is_onehot,
                                 **self.kwargs)
         val_dataset = Dataset(self.df[self.df.patient_id.map(lambda x: x in val)],
                               n_classes=self.n_classes,
                               img_size=self.img_size,
+                              is_onehot_label=self.is_onehot,
                               **self.kwargs)
         test_dataset = Dataset(self.df[self.df.patient_id.map(lambda x: x in test)],
                                n_classes=self.n_classes,
                                img_size=self.img_size,
                                is_extend_malignant=False,
+                               is_onehot_label=self.is_onehot,
                                with_metadata=True)
 
         for aug in self.augmentations:
@@ -199,3 +215,21 @@ class DatasetBuilder:
                                           test_size=self.ratios[1] / sum(self.ratios[:2]),
                                           random_state=self.random_state)
             yield self._build(train, val, folds[i])
+
+    def create_cross_validation_folds(self, n_folds=5):
+        skf = StratifiedKFold(n_folds, shuffle=True, random_state=self.random_state)
+
+        for train_index, test_index in skf.split(self.df, self.df.target.to_numpy()):
+            train_dataset = Dataset(self.df[self.df.index.map(lambda x: x in train_index)],
+                                    n_classes=self.n_classes,
+                                    img_size=self.img_size,
+                                    is_onehot_label=self.is_onehot,
+                                    is_extend_malignant=False,
+                                    **self.kwargs)
+            val_dataset = Dataset(self.df[self.df.index.map(lambda x: x in test_index)],
+                                  n_classes=self.n_classes,
+                                  img_size=self.img_size,
+                                  is_onehot_label=self.is_onehot,
+                                  is_extend_malignant=False,
+                                  **self.kwargs)
+            yield train_dataset, val_dataset

@@ -48,6 +48,11 @@ class TrainerBuilder():
                 trigger=triggers.MaxValueTrigger("validation/main/accuracy", trigger=log_interval),
                 priority=training.extension.PRIORITY_READER,
             )
+            self.trainer.extend(
+                extensions.snapshot_object(optimizer.target, "snapshot_model_roc.npz", savefun=serialize),
+                trigger=triggers.MaxValueTrigger("validation/main/roc", trigger=log_interval),
+                priority=training.extension.PRIORITY_READER,
+            )
         self.trainer.extend(extensions.ProgressBar())
         self.trainer.extend(extensions.LogReport(trigger=print_interval))
         self.trainer.extend(extensions.PrintReport([

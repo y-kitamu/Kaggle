@@ -17,7 +17,6 @@ GlobalParams = namedtuple("GlobalParams", [
     "batch_norm_epsilon",
     "dropout_rate",
     "drop_connect_rate",
-    "num_classes",
 ])
 
 BlockArgs = namedtuple("BlockArgs", [
@@ -39,7 +38,6 @@ EfficientNetB0 = GlobalParams(
     batch_norm_epsilon=1e-3,
     dropout_rate=0.2,
     drop_connect_rate=0.2,
-    num_classes=2,
 )
 
 EfficientNetB3 = GlobalParams(
@@ -50,7 +48,6 @@ EfficientNetB3 = GlobalParams(
     batch_norm_epsilon=1e-3,
     dropout_rate=0.3,
     drop_connect_rate=0.2,
-    num_classes=2,
 )
 
 DEFAULT_BLOCKS_ARGS = [
@@ -140,7 +137,7 @@ def round_repeats(repeats, global_params):
 
 class EfficientNet(chainer.Chain):
 
-    def __init__(self, blocks_args=DEFAULT_BLOCKS_ARGS, global_params=EfficientNetB0):
+    def __init__(self, num_classes=2, blocks_args=DEFAULT_BLOCKS_ARGS, global_params=EfficientNetB0):
         super().__init__()
         assert isinstance(blocks_args, list)
         assert len(blocks_args) > 0
@@ -172,7 +169,7 @@ class EfficientNet(chainer.Chain):
 
             self._avg_pooling = lambda x: F.average(x, axis=(2, 3))
             self._dropout = lambda x: F.dropout(x, global_params.dropout_rate)
-            self._fc = L.Linear(out_channels, global_params.num_classes)
+            self._fc = L.Linear(out_channels, num_classes)
             self._swish = F.sigmoid
 
     def forward(self, inputs, *args, **kwargs):
@@ -202,9 +199,13 @@ class EfficientNetCW(EfficientNet):
     """EfficientNet : loss func with class weights version
     """
 
-    def __init__(self, blocks_args=DEFAULT_BLOCKS_ARGS, global_params=EfficientNetB0, class_weights=None):
-        super().__init__(blocks_args, global_params)
-        self.n_classes = global_params.num_classes
+    def __init__(self,
+                 num_classes=2,
+                 blocks_args=DEFAULT_BLOCKS_ARGS,
+                 global_params=EfficientNetB0,
+                 class_weights=None):
+        super().__init__(num_classes, blocks_args, global_params)
+        self.n_classes = num_classes
         self.class_weights = class_weights
         if self.class_weights is None:
             self.class_weights = np.array([1.0 / self.n_classes] * self.n_classes)

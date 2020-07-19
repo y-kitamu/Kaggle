@@ -69,7 +69,7 @@ def evaluate(predictor, iterator, class_labels, output_stem, device=-1, meta_hea
             for pred, data, label in zip(preds, batch, inputs[-1]):
                 if pred.shape[-1] > 1:
                     pred_label = pred.argmax(axis=-1)
-                    confs = pred.to_list()
+                    confs = pred.tolist()
                 else:
                     pred_label = int(pred.round())
                     confs = [pred]
@@ -89,8 +89,8 @@ def evaluate_submission(predictor, iterator, output_stem, device, filenames):
     for idx, filename in enumerate(sorted(filenames)):
         chainer.serializers.load_npz(filename, predictor.extractor)
         if device >= 0:
-            predictor.to_gpu()
-            predictor.extractor.to_gpu()
+            predictor.to_gpu(device)
+            predictor.extractor.to_gpu(device)
         output_list.append(_evaluate_submission(predictor, iterator, f"{output_stem}_{idx:02d}", device))
 
     _sum_predict(output_list, output_stem)
@@ -131,11 +131,11 @@ def _evaluate_submission(predictor, iterator, output_stem, device):
 
     iterator.reset()
     for batch in iterator:
-        imgs, = concat_examples([b[:-1] for b in batch], device)
+        imgs, metas = concat_examples([b[:-1] for b in batch], device)
         with device:
-            preds = predictor.predict(imgs)
+            preds = predictor.predict(imgs, metas)
             for pred, data in zip(preds, batch):
-                csv_writer.writerow([data[-1], pred[1]])
+                csv_writer.writerow([data[-1], pred[-1]])
     fileobj.close()
     return output_fname
 
