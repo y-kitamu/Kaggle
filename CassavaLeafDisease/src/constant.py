@@ -20,6 +20,9 @@ TEST_DATA_DIR = DATA_ROOT / "test_images"
 
 CONFIG_ROOT = (Path(__file__).parents[1] / "confs").resolve()
 OUTPUT_ROOT = (Path(__file__).parents[1] / "results").resolve()
+# for kaggle notebook
+if os.path.exists("/kaggle/input"):
+    OUTPUT_ROOT = Path("/kaggle/working/results/")
 # for google colab
 if os.path.exists("/content/gdrive"):
     OUTPUT_ROOT = Path("/content/gdrive/MyDrive/Colab Notebooks/Kaggle/CassaveLeafDisease/result")
