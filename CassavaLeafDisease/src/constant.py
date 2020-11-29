@@ -7,8 +7,8 @@ DATA_ROOT = Path.home() / "dataset" / "CassavaLeafDisease"
 if os.path.exists("/kaggle/input/cassava-leaf-disease-classification/"):
     DATA_ROOT = Path("/kaggle/input/cassava-leaf-disease-classification/")
 # for google colab
-if os.path.exists("/content/gdrive"):
-    DATA_ROOT = Path("/content/gdrive/MyDrive/dataset/")
+if os.path.exists("/content"):
+    DATA_ROOT = Path("/content")
 
 N_CLASSES = 5
 BATCH_SIZE = 32
