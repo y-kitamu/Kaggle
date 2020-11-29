@@ -41,6 +41,7 @@ def prepare_callbacks(cfg, fold_idx):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    print("Result output directory : {}".format(output_dir))
     callback_list = []
     # callback_list.append(ProgressLogger())
     callback_list.append(
@@ -84,6 +85,8 @@ def train(cfg):
 
     kf = get_kfold_dataset(cfg)
     for idx, (train_ds, val_ds) in enumerate(kf):
+        print("==================== Fold : {} / {} ====================".format(
+            idx + 1, cfg["train"]["k_fold"]))
         model, _, _, callback_list = setup(cfg, idx)
         model.fit(train_ds,
                   epochs=cfg["train"]["epochs"],

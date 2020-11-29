@@ -105,12 +105,13 @@ class DatasetGenerator:
                 yield self.filenames[shuffled[start:end]], self.labels[shuffled[start:end]]
 
 
-def get_dataset(df,
+def get_dataset(cfg,
                 is_train=True,
                 data_dir=str(TRAIN_DATA_DIR),
                 n_classes=N_CLASSES,
                 image_size=IMAGE_SIZE,
                 batch_size=BATCH_SIZE):
+    df = pd.read_csv(TRAIN_CSV)
     df["label"] = df.label.map(lambda x: str(x))
     if is_train:
         image_gen = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True)

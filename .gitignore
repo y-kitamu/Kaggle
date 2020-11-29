@@ -13,3 +13,4 @@ __pycache__
 *.csv
 *.hdf5
 *.h5
+kaggle.json

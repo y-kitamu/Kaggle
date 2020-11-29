@@ -22,7 +22,7 @@ CONFIG_ROOT = (Path(__file__).parents[1] / "confs").resolve()
 OUTPUT_ROOT = (Path(__file__).parents[1] / "results").resolve()
 # for google colab
 if os.path.exists("/content/gdrive"):
-    OUTPUT_ROOT = Path("/content/gdrive/MyDrive/Colab Notebooks/Kaggle/CassaveDisease/result")
+    OUTPUT_ROOT = Path("/content/gdrive/MyDrive/Colab Notebooks/Kaggle/CassaveLeafDisease/result")
 
 
 @dataclass
