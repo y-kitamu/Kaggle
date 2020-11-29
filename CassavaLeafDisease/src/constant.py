@@ -1,8 +1,10 @@
+import os
 from pathlib import Path
 from dataclasses import dataclass
 
-#DATA_ROOT = Path("/kaggle/input/cassava-leaf-disease-classification/")
 DATA_ROOT = Path.home() / "dataset" / "CassavaLeafDisease"
+if os.path.exists("/kaggle/input/cassava-leaf-disease-classification/"):
+    DATA_ROOT = Path("/kaggle/input/cassava-leaf-disease-classification/")
 
 N_CLASSES = 5
 BATCH_SIZE = 32
