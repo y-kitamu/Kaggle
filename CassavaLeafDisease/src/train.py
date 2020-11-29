@@ -18,26 +18,26 @@ from src.constant import CONFIG_ROOT, OUTPUT_ROOT
 
 
 def get_optimizer(cfg):
-    if hasattr(cfg.train, "optimizer"):
-        return tf.keras.optimizers.get(dict(**cfg.train.optimizer))
+    if hasattr(cfg["train"], "optimizer"):
+        return tf.keras.optimizers.get(dict(**cfg["train"]["optimizer"]))
     return Adam()
 
 
 def get_loss(cfg):
-    if hasattr(cfg.train, "loss"):
-        return tf.keras.losses.get(dict(**cfg.train.loss))
+    if hasattr(cfg["train"], "loss"):
+        return tf.keras.losses.get(dict(**cfg["train"]["loss"]))
     return CategoricalCrossentropy(from_logits=True, label_smoothing=0.1)
 
 
 def get_lr_scheduler(cfg):
-    default_lr = cfg.train.initial_lr
-    if cfg.train.lr_schedule.class_name == "manual_lr_scheduler":
+    default_lr = cfg["train"]["initial_lr"]
+    if cfg["train"]["lr_schedule"]["class_name"] == "manual_lr_scheduler":
         return lambda epoch, idx: manual_lr_scheduler(
-            epoch, idx, default_lr=default_lr, **cfg.train.lr_schedule.config)
+            epoch, idx, default_lr=default_lr, **cfg["train"]["initial_lr"]["config"])
 
 
 def prepare_callbacks(cfg, fold_idx):
-    output_dir = OUTPUT_ROOT / cfg.title
+    output_dir = OUTPUT_ROOT / cfg["title"]
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -67,7 +67,7 @@ def prepare_callbacks(cfg, fold_idx):
 
 
 def setup(cfg, fold_idx=0):
-    set_gpu(cfg.gpu)
+    set_gpu(cfg["gpu"])
     model = get_model(cfg)
     optimizer = get_optimizer(cfg)
     loss = get_loss(cfg)
@@ -79,15 +79,15 @@ def setup(cfg, fold_idx=0):
 
 
 def train(cfg):
-    train_batch_size = cfg.train.batch_size
+    train_batch_size = cfg["train"]["batch_size"]
     val_batch_size = train_batch_size * 2
 
     kf = get_kfold_dataset(cfg)
     for idx, (train_ds, val_ds) in enumerate(kf):
         model, _, _, callback_list = setup(cfg, idx)
         model.fit(train_ds,
-                  epochs=cfg.train.epochs,
-                  initial_epoch=cfg.train.start_epoch,
+                  epochs=cfg["train"]["epochs"],
+                  initial_epoch=cfg["train"]["start_epoch"],
                   steps_per_epoch=math.ceil(train_ds.samples / train_batch_size),
                   validation_data=val_ds,
                   validation_steps=math.ceil(val_ds.samples / val_batch_size),
