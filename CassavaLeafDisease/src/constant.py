@@ -3,8 +3,12 @@ from pathlib import Path
 from dataclasses import dataclass, field
 
 DATA_ROOT = Path.home() / "dataset" / "CassavaLeafDisease"
+# for kaggle notebook
 if os.path.exists("/kaggle/input/cassava-leaf-disease-classification/"):
     DATA_ROOT = Path("/kaggle/input/cassava-leaf-disease-classification/")
+# for google colab
+if os.path.exists("/content/gdrive"):
+    DATA_ROOT = Path("/content/gdrive/MyDrive/dataset/")
 
 N_CLASSES = 5
 BATCH_SIZE = 32
@@ -16,6 +20,9 @@ TEST_DATA_DIR = DATA_ROOT / "test_images"
 
 CONFIG_ROOT = (Path(__file__).parents[1] / "confs").resolve()
 OUTPUT_ROOT = (Path(__file__).parents[1] / "results").resolve()
+# for google colab
+if os.path.exists("/content/gdrive"):
+    OUTPUT_ROOT = Path("/content/gdrive/MyDrive/Colab Notebooks/Kaggle/CassaveDisease/result")
 
 
 @dataclass
