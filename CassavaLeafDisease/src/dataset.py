@@ -80,6 +80,7 @@ class DatasetGenerator:
         return len(self.filenames)
 
     def __iter__(self):
+        self.files_and_labels_gen = self._get_files_and_labels_generator()
         return self
 
     def __next__(self):
@@ -94,42 +95,25 @@ class DatasetGenerator:
                     fetch, (filenames, labels, self.data_dir, self.image_size, self.is_train)))
 
     def _get_files_and_labels_generator(self):
-        steps_per_batch = math.ceil(self.samples / self.batch_size)
-        while True:
-            index_arr = np.arange(steps_per_batch * self.batch_size, dtype=np.int)
-            index_arr[self.samples:] = np.random.randint(self.samples)
-            shuffled = np.random.permutation(index_arr)
-            for i in range(steps_per_batch):
+        steps_per_epoch = math.ceil(self.samples / self.batch_size)
+        if self.is_train:
+            while True:
+                index_arr = np.arange(steps_per_epoch * self.batch_size, dtype=np.int)
+                index_arr[self.samples:] = np.random.randint(self.samples)
+                shuffled = np.random.permutation(index_arr)
+                for i in range(steps_per_epoch):
+                    start = i * self.batch_size
+                    end = start + self.batch_size
+                    yield self.filenames[shuffled[start:end]], self.labels[shuffled[start:end]]
+        else:
+            for i in range(steps_per_epoch):
                 start = i * self.batch_size
-                end = start + self.batch_size
-                yield self.filenames[shuffled[start:end]], self.labels[shuffled[start:end]]
-
-
-def get_dataset(cfg,
-                is_train=True,
-                data_dir=str(TRAIN_DATA_DIR),
-                n_classes=N_CLASSES,
-                image_size=IMAGE_SIZE,
-                batch_size=BATCH_SIZE):
-    df = pd.read_csv(TRAIN_CSV)
-    df["label"] = df.label.map(lambda x: str(x))
-    if is_train:
-        image_gen = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True)
-    else:
-        image_gen = ImageDataGenerator(rescale=1. / 255)
-    return image_gen.flow_from_dataframe(df,
-                                         directory=data_dir,
-                                         x_col="image_id",
-                                         y_col="label",
-                                         class_mode="categorical",
-                                         target_size=(image_size, image_size),
-                                         batch_size=batch_size,
-                                         classes=[str(i) for i in range(n_classes)],
-                                         shuffle=is_train)
+                end = min(start + self.batch_size, len(self.filenames))
+                yield self.filenames[start:end], self.labels[start:end]
 
 
 def get_train_val_dataset(cfg, test_ratio=0.2):
-    n_classes = cfg["train"]["n_classes"]
+    n_classes = cfg["n_classes"]
     df = pd.read_csv(TRAIN_CSV)
     train_df, val_df = train_test_split(df, test_size=test_ratio, stratify=df.label)
     train_gen = DatasetGenerator(

@@ -2,11 +2,14 @@ import os
 import math
 import argparse
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras import callbacks
+from sklearn.metrics import classification_report
 from hydra.experimental import initialize, compose
+import mlflow
 
 from src.model import get_model
 from src.dataset import get_kfold_dataset, get_train_val_dataset
@@ -15,6 +18,7 @@ from src.lr_scheduler import manual_lr_scheduler
 from src.callbacks import ProgressLogger
 from src.utility import set_gpu
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
+from src.evaluate import evaluate
 
 
 def get_optimizer(cfg):
@@ -36,7 +40,37 @@ def get_lr_scheduler(cfg):
             epoch, idx, default_lr=default_lr, **cfg["train"]["lr_schedule"]["config"])
 
 
+def log_params_to_mlflow(cfg):
+    mlflow.log_params({
+        "title": cfg["title"],
+        "model": cfg["train"]["model"]["class_name"],
+        "optimizer": cfg["train"]["optimizer"]["class_name"],
+        "loss": cfg["train"]["loss"]["class_name"],
+        "epochs": cfg["train"]["epochs"],
+        "folds": cfg["train"]["k_fold"],
+    })
+
+
+def log_metrics(accuracy, metrics):
+    mlflow.log_metric("accuracy", accuracy)
+    for cls, mtx in metrics.items():
+        for key, val in mtx.items():
+            mlflow.log_metric("{}_{}".format(key, cls), val)
+
+
+def log_artifacts(cfg):
+    for fold_idx in range(cfg["train"]["k_fold"]):
+        output_dir = OUTPUT_ROOT / cfg["title"]
+        acc_weight = output_dir / "best_val_acc{}.hdf5".format(fold_idx)
+        loss_weight = output_dir / "best_val_loss{}.hdf5".format(fold_idx)
+        epoch_weight = output_dir / "epoch{}_{:03d}.hdf5".format(fold_idx, cfg["train"]["epochs"])
+        mlflow.log_artifact(str(acc_weight), artifact_path=cfg["title"])
+        mlflow.log_artifact(str(loss_weight), artifact_path=cfg["title"])
+        mlflow.log_artifact(str(epoch_weight), artifact_path=cfg["title"])
+
+
 def prepare_callbacks(cfg, fold_idx):
+    log_params_to_mlflow(cfg)
     output_dir = OUTPUT_ROOT / cfg["title"]
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -83,6 +117,8 @@ def train(cfg):
     train_batch_size = cfg["train"]["batch_size"]
     val_batch_size = train_batch_size * 2
 
+    preds = []
+    trues = []
     kf = get_kfold_dataset(cfg)
     for idx, (train_ds, val_ds) in enumerate(kf):
         print("==================== Fold : {} / {} ====================".format(
@@ -95,6 +131,18 @@ def train(cfg):
                   validation_data=val_ds,
                   validation_steps=math.ceil(val_ds.samples / val_batch_size),
                   callbacks=callback_list)
+
+        pred, true = evaluate(cfg, val_ds, idx)
+        preds.append(pred)
+        trues.append(true)
+
+    preds = np.concatenate(preds, axis=0).argmax(axis=1)
+    trues = np.concatenate(trues, axis=0).argmax(axis=1)
+    print(classification_report(trues, preds))
+    metrics = classification_report(trues, preds, output_dict=True)
+    accuracy = (preds == trues).sum() / preds.shape[0]
+    log_metrics(accuracy, metrics)
+    log_artifacts(cfg)
 
 
 def solve(cfg, train_gen=None, val_gen=None, fold_idx=0):

@@ -21,8 +21,11 @@ train:
       from_logits: True
       label_smoothing: 0.1
   lr_schedule:
-    warmup_epoch: 5
-    annealing_epoch: 30
-    annealing_scale: 0.1
-    num_annealing_step: 5
+    class_name: manual_lr_scheduler
+    config:
+      warmup_epoch: 1
+      # warmup_epoch: 5
+      annealing_epoch: 30
+      annealing_scale: 0.1
+      num_annealing_step: 5
 # transfer_model: results/baseline/epoch_0.hdf5

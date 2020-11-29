@@ -9,3 +9,4 @@ from src import train
 from src import callbacks
 from src import utility
 from src import plot
+from src import evaluate
