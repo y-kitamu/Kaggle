@@ -8,3 +8,8 @@ __pycache__
 *.npz
 *.png
 *.jpg
+*.pth
+*.ipynb
+*.csv
+*.hdf5
+*.h5

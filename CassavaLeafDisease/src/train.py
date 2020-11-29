@@ -11,6 +11,7 @@ from hydra.experimental import initialize, compose
 from src.model import get_model
 from src.dataset import get_kfold_dataset, get_train_val_dataset
 from src.solver import Solver
+from src.lr_scheduler import manual_lr_scheduler
 from src.callbacks import ProgressLogger
 from src.utility import set_gpu
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
@@ -30,19 +31,9 @@ def get_loss(cfg):
 
 def get_lr_scheduler(cfg):
     default_lr = cfg.train.initial_lr
-
-    def lr_scheduler(epoch, idx, default_lr, warmup_epoch, annealing_epoch, annealing_scale,
-                     num_annealing_step):
-        if epoch < warmup_epoch:
-            return default_lr * 0.01
-
-        epoch_per_step = int(annealing_epoch / num_annealing_step)
-        current_step = int((epoch - warmup_epoch) % annealing_epoch / epoch_per_step) - 1
-        lr = (annealing_scale**current_step) * default_lr
-        print("new lr : {}".format(lr))
-        return lr
-
-    return lambda epoch, idx: lr_scheduler(epoch, idx, default_lr=default_lr, **cfg.train.lr_schedule)
+    if cfg.train.lr_schedule.class_name == "manual_lr_scheduler":
+        return lambda epoch, idx: manual_lr_scheduler(
+            epoch, idx, default_lr=default_lr, **cfg.train.lr_schedule.config)
 
 
 def prepare_callbacks(cfg, fold_idx):
@@ -52,7 +43,8 @@ def prepare_callbacks(cfg, fold_idx):
 
     callback_list = []
     # callback_list.append(ProgressLogger())
-    callback_list.append(callbacks.CSVLogger(os.path.join(output_dir, "./train_log.csv")))
+    callback_list.append(
+        callbacks.CSVLogger(os.path.join(output_dir, "./train_log{}.csv".format(fold_idx))))
     callback_list.append(callbacks.LearningRateScheduler(get_lr_scheduler(cfg)))
     callback_list.append(
         callbacks.ModelCheckpoint(os.path.join(output_dir, "best_val_acc{}.hdf5".format(fold_idx)),

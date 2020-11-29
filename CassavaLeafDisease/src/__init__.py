@@ -2,6 +2,7 @@ VERSION = (1, 0, 0)
 
 from src import constant
 from src import dataset
+from src import lr_scheduler
 from src import model
 from src import solver
 from src import train
