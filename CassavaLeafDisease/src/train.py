@@ -33,7 +33,7 @@ def get_lr_scheduler(cfg):
     default_lr = cfg["train"]["initial_lr"]
     if cfg["train"]["lr_schedule"]["class_name"] == "manual_lr_scheduler":
         return lambda epoch, idx: manual_lr_scheduler(
-            epoch, idx, default_lr=default_lr, **cfg["train"]["initial_lr"]["config"])
+            epoch, idx, default_lr=default_lr, **cfg["train"]["lr_schedule"]["config"])
 
 
 def prepare_callbacks(cfg, fold_idx):
