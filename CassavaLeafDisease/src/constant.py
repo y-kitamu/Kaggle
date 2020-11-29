@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 DATA_ROOT = Path.home() / "dataset" / "CassavaLeafDisease"
 if os.path.exists("/kaggle/input/cassava-leaf-disease-classification/"):
@@ -21,7 +21,7 @@ OUTPUT_ROOT = (Path(__file__).parents[1] / "results").resolve()
 @dataclass
 class PartsParams:
     class_name: str
-    config: dict = {}
+    config: dict = field(default_factory=dict)
 
 
 @dataclass
