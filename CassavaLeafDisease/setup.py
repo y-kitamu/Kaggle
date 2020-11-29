@@ -11,11 +11,11 @@ def load_requirements(f):
 init = os.path.join(os.path.dirname(__file__), "src", "__init__.py")
 
 version_line = list(filter(lambda l: l.startswith("VERSION"), open(init)))[0]
-VERSION = ".".join(["{{}}".format(x) for x in eval(version_line.split("=")[-1])])
+VERSION = ".".join(["{}".format(x) for x in eval(version_line.split("=")[-1])])
 
 setup(
     name="src",
     version=VERSION,
     install_requires=load_requirements("requirements.txt"),
-    packages=find_packages(where="src"),
+    packages=find_packages(),
 )
