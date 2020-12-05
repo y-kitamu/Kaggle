@@ -30,5 +30,3 @@ train:
       annealing_scale: 0.1
       num_annealing_step: 5
 # transfer_model: results/baseline/epoch_0.hdf5
-test:
-  models: [best_val_acc, best_val_loss]

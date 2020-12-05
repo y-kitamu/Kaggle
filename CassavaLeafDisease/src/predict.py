@@ -12,6 +12,9 @@ log = logging.getLogger(__name__)
 
 
 def get_and_load_model(cfg, model_weights):
+    if not os.path.exists(model_weights):
+        log.warn("Model weights does not exist. Skip loading : {}".format(model_weights))
+        return None
     model = get_model(cfg)
     model.load_weights(model_weights)
     return model
@@ -20,16 +23,14 @@ def get_and_load_model(cfg, model_weights):
 def predict(cfg,
             output_filename="./submission.csv",
             model_dir=os.path.join(os.path.dirname(__file__), "../results/baseline/"),
+            model_weights=["best_val_acc0.hdf5"],
             test_data_dir="../input/cassava-leaf-disease-classification"):
     set_gpu(cfg.gpu)
     test_ds = TestDatasetGenerator(test_data_dir)
 
     log.info("Loading models...")
-    models = [
-        get_and_load_model(cfg, os.path.join(model_dir, "{}{}.hdf5".format(metrix, idx)))
-        for metrix in cfg.test.models
-        for idx in range(cfg.train.k_fold)
-    ]
+    models = [get_and_load_model(cfg, os.path.join(model_dir, basename)) for basename in model_weights]
+    models = [model for model in models if model is not None]
 
     log.info("Start prediction")
     preds = np.zeros((len(test_ds), cfg.n_classes))

@@ -58,11 +58,6 @@ class TrainParams:
 
 
 @dataclass
-class TestParams:
-    models: list = field(default_factory=lambda: ["best_val_acc"])
-
-
-@dataclass
 class Params:
     title: str
     gpu: int = 0
@@ -70,4 +65,3 @@ class Params:
     image_size: int = 256
     n_channel: int = 3
     train: TrainParams = TrainParams()
-    test: TestParams = TestParams()
