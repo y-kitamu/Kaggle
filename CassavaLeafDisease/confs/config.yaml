@@ -5,9 +5,8 @@ image_size: 256
 n_channel: 3
 train:
   k_fold: 5
-  epochs: 95
+  epochs: 91
   batch_size: 32
-  start_epoch: 0
   initial_lr: 0.001
   model:
     class_name: efficientnetb0
@@ -32,4 +31,4 @@ train:
       num_annealing_step: 5
 # transfer_model: results/baseline/epoch_0.hdf5
 test:
-  models: [best_val_acc, best_val_loss, best_acc, best_loss]
+  models: [best_val_acc, best_val_loss]

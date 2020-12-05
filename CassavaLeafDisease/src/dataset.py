@@ -56,6 +56,8 @@ def fetch(filenames, labels, data_dir, image_size, is_train):
         filename = os.path.join(data_dir, fname)
         image = preprocess(filename, image_size, is_train)
         images[idx, ...] = image
+    if labels is None:  # if test
+        return images
     return images, labels
 
 
@@ -94,11 +96,15 @@ class DatasetGenerator:
 
     def __next__(self):
         self._prefetch()
+        if self.queue.empty():
+            raise StopIteration()
         return self.queue.get().get()
 
     def _prefetch(self):
         while not self.queue.full():
             filenames, labels = next(self.files_and_labels_gen)
+            if filenames is None:
+                break
             self.queue.put(
                 self.process_pool.apply_async(
                     fetch, (filenames, labels, self.data_dir, self.image_size, self.is_train)))
@@ -108,21 +114,25 @@ class DatasetGenerator:
         if self.is_train:
             while True:
                 index_arr = np.arange(steps_per_epoch * self.batch_size, dtype=np.int)
-                index_arr[self.samples:] = np.random.randint(self.samples)
+                index_arr[self.samples:] = np.random.randint(index_arr.shape[0] - self.samples)
                 shuffled = np.random.permutation(index_arr)
                 for i in range(steps_per_epoch):
                     start = i * self.batch_size
                     end = start + self.batch_size
                     yield self.filenames[shuffled[start:end]], self.labels[shuffled[start:end]]
         else:
-            while True:
-                for i in range(steps_per_epoch):
-                    start = i * self.batch_size
-                    end = min(start + self.batch_size, len(self.filenames))
+            for i in range(steps_per_epoch):
+                start = i * self.batch_size
+                end = min(start + self.batch_size, len(self.filenames))
+                if hasattr(self, "labels"):
                     yield self.filenames[start:end], self.labels[start:end]
+                else:
+                    yield self.filenames[start:end], None
+            while True:
+                yield None, None
 
 
-class TestDatasetGenerator:
+class TestDatasetGenerator(DatasetGenerator):
 
     def __init__(self,
                  directory,
@@ -137,39 +147,12 @@ class TestDatasetGenerator:
         self.image_size = image_size
         self.batch_size = batch_size
         self.samples = len(self.filenames)
+        self.is_train = False
 
         # for prefetch
         self.process_pool = Pool(processes=n_prefetch)
         self.queue = Queue(maxsize=n_prefetch)
         self.files_and_labels_gen = self._get_files_and_labels_generator()
-
-    def __len__(self):
-        return len(self.filenames)
-
-    def __iter__(self):
-        self.files_and_labels_gen = self._get_files_and_labels_generator()
-        return self
-
-    def __next__(self):
-        self._prefetch()
-        return self.queue.get().get()[0]
-
-    def _prefetch(self):
-        while not self.queue.full():
-            filenames, labels = next(self.files_and_labels_gen)
-            if filenames is None:
-                break
-            self.queue.put(
-                self.process_pool.apply_async(
-                    fetch, (filenames, labels, self.data_dir, self.image_size, False)))
-
-    def _get_files_and_labels_generator(self):
-        steps_per_epoch = math.ceil(self.samples / self.batch_size)
-        for i in range(steps_per_epoch):
-            start = i * self.batch_size
-            end = min(start + self.batch_size, len(self.filenames))
-            yield self.filenames[start:end], None
-        yield None, None
 
 
 def get_train_val_dataset(cfg, test_ratio=0.2):

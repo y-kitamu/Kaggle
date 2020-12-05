@@ -21,9 +21,8 @@ def predict(cfg,
             print("Start evaluate using {}".format(model_filename))
             model.load_weights(model_filename)
             results = []
-            import pdb
-            pdb.set_trace()
-            for imgs in test_ds:
+            for idx, imgs in enumerate(test_ds):
+                print("\r {}".format(idx), end="")
                 res = model(imgs).numpy()
                 results.append(res)
             preds += np.concatenate(results, axis=0)

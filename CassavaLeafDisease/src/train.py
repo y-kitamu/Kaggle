@@ -1,6 +1,8 @@
 import os
+import re
 import math
 import argparse
+import logging
 
 import numpy as np
 import tensorflow as tf
@@ -19,6 +21,8 @@ from src.callbacks import ProgressLogger
 from src.utility import set_gpu
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
 from src.evaluate import evaluate
+
+log = logging.getLogger(__name__)
 
 
 def get_optimizer(cfg):
@@ -40,6 +44,21 @@ def get_lr_scheduler(cfg):
             epoch, idx, default_lr=default_lr, **cfg.train.lr_schedule.config)
 
 
+def restart_at(cfg, model, fold_idx):
+    max_epoch = -1
+    epoch_regex = re.compile("[0-9][0-9][0-9]+")
+    for path in (OUTPUT_ROOT / cfg.title).glob("epoch{}_*.hdf5".format(fold_idx)):
+        basename = os.path.basename(path)
+        epoch = int(epoch_regex.search(basename).group(0))
+        if epoch > max_epoch:
+            max_epoch = epoch
+    if max_epoch == -1:
+        return 0
+    weight_path = str(OUTPUT_ROOT / cfg.title / "epoch{}_{:03d}.hdf5".format(fold_idx, max_epoch))
+    model.load_weights(weight_path)
+    return max_epoch
+
+
 def log_params(cfg):
     mlflow.log_params({
         "title": cfg.title,
@@ -54,6 +73,9 @@ def log_params(cfg):
 def log_metrics(accuracy, metrics):
     mlflow.log_metric("accuracy", accuracy)
     for cls, mtx in metrics.items():
+        if isinstance(mtx, float):
+            mlflow.log_metric(cls, mtx)
+            continue
         for key, val in mtx.items():
             mlflow.log_metric("{}_{}".format(key, cls), val)
 
@@ -80,7 +102,7 @@ def prepare_callbacks(cfg, fold_idx):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    print("Result output directory : {}".format(output_dir))
+    log.debug("Result output directory : {}".format(output_dir))
     callback_list = []
     # callback_list.append(ProgressLogger())
     callback_list.append(
@@ -138,27 +160,35 @@ def train(cfg):
     trues = []
     kf = get_kfold_dataset(cfg)
     for idx, (train_ds, val_ds) in enumerate(kf):
-        print("==================== Fold : {} / {} ====================".format(
+        log.info("==================== Fold : {} / {} ====================".format(
             idx + 1, cfg.train.k_fold))
         model, _, _, callback_list = setup(cfg, idx)
+        start_epoch = restart_at(cfg, model, idx)
+
+        log.info("Train data num : {}".format(train_ds.samples))
+        log.info("Validation data num : {}".format(val_ds.samples))
+        log.info("batch_size : {}".format(cfg.train.batch_size))
+        log.info("start epoch / total epoch : {} / {}".format(start_epoch, cfg.train.epochs))
+
         model.fit(train_ds,
                   epochs=cfg.train.epochs,
-                  initial_epoch=cfg.train.start_epoch,
+                  initial_epoch=start_epoch,
                   steps_per_epoch=math.ceil(train_ds.samples / train_batch_size),
                   validation_data=val_ds,
                   validation_steps=math.ceil(val_ds.samples / val_batch_size),
                   callbacks=callback_list)
 
+        log.info("start evaluation")
         pred, true = evaluate(cfg, val_ds, idx)
         preds.append(pred)
         trues.append(true)
 
     preds = np.concatenate(preds, axis=0).argmax(axis=1)
     trues = np.concatenate(trues, axis=0).argmax(axis=1)
-    print(classification_report(trues, preds))
-    metrics = classification_report(trues, preds, output_dict=True)
-    accuracy = (preds == trues).sum() / preds.shape[0]
-    log_to_mlflow(cfg, accuracy, metrics)
+    log.info("\n{}".format(classification_report(trues, preds)))
+    # metrics = classification_report(trues, preds, output_dict=True)
+    # accuracy = (preds == trues).sum() / preds.shape[0]
+    # log_to_mlflow(cfg, accuracy, metrics)
 
 
 def solve(cfg, train_gen=None, val_gen=None, fold_idx=0):
