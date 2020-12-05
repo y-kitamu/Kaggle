@@ -25,6 +25,7 @@ def predict(cfg,
                 print("\r {}".format(idx), end="")
                 res = model(imgs).numpy()
                 results.append(res)
+            print("")
             preds += np.concatenate(results, axis=0)
     preds = preds.argmax(axis=1)
     with open(output_filename, 'w') as f:
