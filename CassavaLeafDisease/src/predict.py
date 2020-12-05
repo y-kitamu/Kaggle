@@ -26,7 +26,7 @@ def predict(cfg,
 
     log.info("Loading models...")
     models = [
-        get_and_load_model(cfg, model_dir / "{}{}.hdf5".format(metrix, idx))
+        get_and_load_model(cfg, os.path.join(model_dir, "{}{}.hdf5".format(metrix, idx)))
         for metrix in cfg.test.models
         for idx in range(cfg.train.k_fold)
     ]
