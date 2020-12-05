@@ -11,6 +11,8 @@ train:
   initial_lr: 0.001
   model:
     class_name: efficientnetb0
+    config:
+      dropout_rate: 0.5
   optimizer:
     class_name: Adam
     config:
@@ -19,7 +21,7 @@ train:
     class_name: CategoricalCrossentropy
     config:
       from_logits: True
-      label_smoothing: 0.1
+      label_smoothing: 0.2
   lr_schedule:
     class_name: manual_lr_scheduler
     config:

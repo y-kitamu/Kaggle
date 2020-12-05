@@ -1,3 +1,5 @@
+"""Dataloader for training, validation, test
+"""
 import os
 import math
 from queue import Queue
@@ -44,7 +46,13 @@ def preprocess(filename, label, image_size, is_train):
 
 
 def fetch(filenames, labels, data_dir, image_size, is_train):
+    """Create batch data. Read and augment images.
+    Args:
+        filenames (list of str) : list of image filenames
+        labels (numpy array) : true label array. (must have the same length as filenames)
+    """
     images = np.zeros((len(filenames), image_size, image_size, 3))
+    assert len(filenames) == labels.shape[0]
     for idx, (fname, label) in enumerate(zip(filenames, labels)):
         filename = os.path.join(data_dir, fname)
         image, label = preprocess(filename, label, image_size, is_train)
@@ -53,6 +61,8 @@ def fetch(filenames, labels, data_dir, image_size, is_train):
 
 
 class DatasetGenerator:
+    """
+    """
 
     def __init__(self,
                  df,
@@ -106,10 +116,11 @@ class DatasetGenerator:
                     end = start + self.batch_size
                     yield self.filenames[shuffled[start:end]], self.labels[shuffled[start:end]]
         else:
-            for i in range(steps_per_epoch):
-                start = i * self.batch_size
-                end = min(start + self.batch_size, len(self.filenames))
-                yield self.filenames[start:end], self.labels[start:end]
+            while True:
+                for i in range(steps_per_epoch):
+                    start = i * self.batch_size
+                    end = min(start + self.batch_size, len(self.filenames))
+                    yield self.filenames[start:end], self.labels[start:end]
 
 
 def get_train_val_dataset(cfg, test_ratio=0.2):

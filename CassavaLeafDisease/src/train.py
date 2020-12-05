@@ -40,7 +40,7 @@ def get_lr_scheduler(cfg):
             epoch, idx, default_lr=default_lr, **cfg["train"]["lr_schedule"]["config"])
 
 
-def log_params_to_mlflow(cfg):
+def log_params(cfg):
     mlflow.log_params({
         "title": cfg["title"],
         "model": cfg["train"]["model"]["class_name"],
@@ -69,8 +69,13 @@ def log_artifacts(cfg):
         mlflow.log_artifact(str(epoch_weight), artifact_path=cfg["title"])
 
 
+def log_to_mlflow(cfg, accuracy, metrics):
+    log_params(cfg)
+    log_metrics(accuracy, metrics)
+    log_artifacts(cfg)
+
+
 def prepare_callbacks(cfg, fold_idx):
-    log_params_to_mlflow(cfg)
     output_dir = OUTPUT_ROOT / cfg["title"]
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -88,9 +93,21 @@ def prepare_callbacks(cfg, fold_idx):
                                   mode="max",
                                   save_best_only=True))
     callback_list.append(
+        callbacks.ModelCheckpoint(os.path.join(output_dir, "best_train_acc{}.hdf5".format(fold_idx)),
+                                  save_weights_only=True,
+                                  monitor="accuracy",
+                                  mode="max",
+                                  save_best_only=True))
+    callback_list.append(
         callbacks.ModelCheckpoint(os.path.join(output_dir, "best_val_loss{}.hdf5".format(fold_idx)),
                                   save_weights_only=True,
                                   monitor="val_loss",
+                                  mode="min",
+                                  save_best_only=True))
+    callback_list.append(
+        callbacks.ModelCheckpoint(os.path.join(output_dir, "best_train_loss{}.hdf5".format(fold_idx)),
+                                  save_weights_only=True,
+                                  monitor="loss",
                                   mode="min",
                                   save_best_only=True))
     callback_list.append(
@@ -141,8 +158,7 @@ def train(cfg):
     print(classification_report(trues, preds))
     metrics = classification_report(trues, preds, output_dict=True)
     accuracy = (preds == trues).sum() / preds.shape[0]
-    log_metrics(accuracy, metrics)
-    log_artifacts(cfg)
+    log_to_mlflow(cfg, accuracy, metrics)
 
 
 def solve(cfg, train_gen=None, val_gen=None, fold_idx=0):
