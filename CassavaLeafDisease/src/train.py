@@ -10,8 +10,6 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras import callbacks
 from sklearn.metrics import classification_report
-from hydra.experimental import initialize, compose
-import mlflow
 
 from src.model import get_model
 from src.dataset import get_kfold_dataset, get_train_val_dataset
@@ -59,39 +57,40 @@ def restart_at(cfg, model, fold_idx):
     return max_epoch
 
 
-def log_params(cfg):
-    mlflow.log_params({
-        "title": cfg.title,
-        "model": cfg.train.model.class_name,
-        "optimizer": cfg.train.optimizer.class_name,
-        "loss": cfg.train.loss.class_name,
-        "epochs": cfg.train.epochs,
-        "folds": cfg.train.k_fold,
-    })
-
-
-def log_metrics(accuracy, metrics):
-    mlflow.log_metric("accuracy", accuracy)
-    for cls, mtx in metrics.items():
-        if isinstance(mtx, float):
-            mlflow.log_metric(cls, mtx)
-            continue
-        for key, val in mtx.items():
-            mlflow.log_metric("{}_{}".format(key, cls), val)
-
-
-def log_artifacts(cfg):
-    for fold_idx in range(cfg.train.k_fold):
-        output_dir = OUTPUT_ROOT / cfg.title
-        acc_weight = output_dir / "best_val_acc{}.hdf5".format(fold_idx)
-        loss_weight = output_dir / "best_val_loss{}.hdf5".format(fold_idx)
-        epoch_weight = output_dir / "epoch{}_{:03d}.hdf5".format(fold_idx, cfg.train.epochs)
-        mlflow.log_artifact(str(acc_weight), artifact_path=cfg.title)
-        mlflow.log_artifact(str(loss_weight), artifact_path=cfg.title)
-        mlflow.log_artifact(str(epoch_weight), artifact_path=cfg.title)
-
-
 def log_to_mlflow(cfg, accuracy, metrics):
+    # import here because to avoid error when submit in kaggle
+    import mlflow
+
+    # define here because to avoid error when submit in kaggle
+    def log_params(cfg):
+        mlflow.log_params({
+            "title": cfg.title,
+            "model": cfg.train.model.class_name,
+            "optimizer": cfg.train.optimizer.class_name,
+            "loss": cfg.train.loss.class_name,
+            "epochs": cfg.train.epochs,
+            "folds": cfg.train.k_fold,
+        })
+
+    def log_metrics(accuracy, metrics):
+        mlflow.log_metric("accuracy", accuracy)
+        for cls, mtx in metrics.items():
+            if isinstance(mtx, float):
+                mlflow.log_metric(cls, mtx)
+                continue
+            for key, val in mtx.items():
+                mlflow.log_metric("{}_{}".format(key, cls), val)
+
+    def log_artifacts(cfg):
+        for fold_idx in range(cfg.train.k_fold):
+            output_dir = OUTPUT_ROOT / cfg.title
+            acc_weight = output_dir / "best_val_acc{}.hdf5".format(fold_idx)
+            loss_weight = output_dir / "best_val_loss{}.hdf5".format(fold_idx)
+            epoch_weight = output_dir / "epoch{}_{:03d}.hdf5".format(fold_idx, cfg.train.epochs)
+            mlflow.log_artifact(str(acc_weight), artifact_path=cfg.title)
+            mlflow.log_artifact(str(loss_weight), artifact_path=cfg.title)
+            mlflow.log_artifact(str(epoch_weight), artifact_path=cfg.title)
+
     log_params(cfg)
     log_metrics(accuracy, metrics)
     log_artifacts(cfg)
@@ -213,6 +212,8 @@ def solve_kfold(cfg):
 
 
 def get_config_instance(config_name="config.yaml", config_dir=str(CONFIG_ROOT)):
+    # import here because to avoid error when submit in kaggle
+    from hydra.experimental import initialize, compose
     relpath = os.path.relpath(config_dir, os.path.dirname(__file__))
     with initialize(config_path=relpath):
         cfg = compose(config_name)

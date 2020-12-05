@@ -16,6 +16,6 @@ VERSION = ".".join(["{}".format(x) for x in eval(version_line.split("=")[-1])])
 setup(
     name="src",
     version=VERSION,
-    install_requires=load_requirements("requirements.txt"),
+    # install_requires=load_requirements("requirements.txt"),
     packages=find_packages(),
 )

@@ -59,7 +59,7 @@ class TrainParams:
 
 @dataclass
 class TestParams:
-    models: list = field(default_factory=lambda: ["best_val_acc", "best_val_loss"])
+    models: list = field(default_factory=lambda: ["best_val_acc"])
 
 
 @dataclass
