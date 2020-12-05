@@ -125,7 +125,7 @@ def setup(cfg, fold_idx=0):
     loss = get_loss(cfg)
 
     model.compile(optimizer=optimizer, loss=loss, metrics=["accuracy"])
-    model.summary()
+    # model.summary()
     callback_list = prepare_callbacks(cfg, fold_idx)
     return model, optimizer, loss, callback_list
 

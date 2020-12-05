@@ -11,6 +11,4 @@ __pycache__
 *.pth
 *.ipynb
 *.csv
-*.hdf5
-*.h5
 kaggle.json
