@@ -1,10 +1,13 @@
+import os
 import numpy as np
-import tensorflow as tf
+import csv
 
 from src.dataset import TestDatasetGenerator
+from src.model import get_model
 
 
 def predict(cfg,
+            output_filename="./submission.csv",
             model_dir=os.path.join(os.path.dirname(__file__), "../results/baseline/"),
             test_data_dir="../input/cassava-leaf-disease-classification"):
     test_ds = TestDatasetGenerator(test_data_dir)
@@ -21,4 +24,9 @@ def predict(cfg,
                 results.append(res)
             preds += np.concatenate(results, axis=0)
     preds = preds.argmax(axis=1)
+    with open(output_filename, 'w') as f:
+        csv_writer = csv.writer(f, lineterminator="\n")
+        csv_writer.writerow("image_id", "pred")
+        for fname, pred in zip(test_ds.filenames, preds):
+            csv_writer.writerow([fname, pred])
     return preds
