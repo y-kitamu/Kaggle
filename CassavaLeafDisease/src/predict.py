@@ -45,7 +45,7 @@ def predict(cfg,
     preds = preds.argmax(axis=1)
     with open(output_filename, 'w') as f:
         csv_writer = csv.writer(f, lineterminator="\n")
-        csv_writer.writerow(["image_id", "pred"])
+        csv_writer.writerow(["image_id", "label"])
         for fname, pred in zip(test_ds.filenames, preds):
             csv_writer.writerow([fname, pred])
 
