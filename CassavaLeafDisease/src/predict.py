@@ -25,7 +25,6 @@ def predict(cfg,
     test_ds = TestDatasetGenerator(test_data_dir)
 
     log.info("Loading models...")
-    model_dir = OUTPUT_ROOT / cfg.title
     models = [
         get_and_load_model(cfg, model_dir / "{}{}.hdf5".format(metrix, idx))
         for metrix in cfg.test.models
