@@ -34,7 +34,7 @@ class Solver(object):
         self.val_gen = val_gen
         self.loss_func = loss_func
         self.optimizer = optimizer
-        self.start_epoch = cfg["train"]["start_epoch"]
+        self.start_epoch = cfg.train.start_epoch
         self.callbacks = callbacks
         self.callbacks.set_model(self.model)
 
@@ -91,11 +91,11 @@ class Solver(object):
         train_steps_per_epoch = math.ceil(self.train_gen.samples / self.train_gen.batch_size)
         val_steps_per_epoch = math.ceil(self.val_gen.samples / self.val_gen.batch_size)
         self.callbacks.on_train_begin({
-            "epochs": self.cfg["train"]["epochs"],
+            "epochs": self.cfg.train.epochs,
             "steps_per_epochs": train_steps_per_epoch
         })
 
-        for epoch in range(self.start_epoch, self.cfg["train"]["epochs"]):
+        for epoch in range(self.start_epoch, self.cfg.train.epochs):
             self.callbacks.on_epoch_begin(epoch)
             self._reset_state_of_metrix_containers()
             for idx, (images, labels) in enumerate(self.train_gen):

@@ -16,6 +16,7 @@ def run_debug(func):
 
 def set_gpu(gpu_id=0):
     if gpu_id < 0:
+        tf.config.set_visible_devices([], 'GPU')
         return
     if tf.__version__ >= "2.1.0":
         physical_devices = tf.config.list_physical_devices('GPU')
