@@ -189,6 +189,7 @@ def train(cfg):
     # metrics = classification_report(trues, preds, output_dict=True)
     # accuracy = (preds == trues).sum() / preds.shape[0]
     # log_to_mlflow(cfg, accuracy, metrics)
+    log.info("Successfully Finish Training!")
 
 
 def solve(cfg, train_gen=None, val_gen=None, fold_idx=0):
