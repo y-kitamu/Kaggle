@@ -1,9 +1,9 @@
 pipeline {
-    agent { docker { image 'python:3.5.1' } }
+    agent { docker { image 'python:latest' } }
     stages {
         stage('build') {
             steps {
-                sh 'python --version'
+                sh 'cd CassavaLeafDisease && python setup.py bdist_wheel'
             }
         }
     }
