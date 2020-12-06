@@ -33,7 +33,8 @@ def get_optimizer(cfg):
 def get_loss(cfg):
     if hasattr(cfg.train, "loss"):
         if cfg.train.loss.class_name == "focal_loss":
-            return tfa.losses.SigmoidFocalCrossEntropy(**cfg.train.loss.config)
+            return tfa.losses.SigmoidFocalCrossEntropy(
+                **cfg.train.loss.config, reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
         else:
             return tf.keras.losses.get(dict(**cfg.train.loss))
     return CategoricalCrossentropy(from_logits=True, label_smoothing=0.1)
