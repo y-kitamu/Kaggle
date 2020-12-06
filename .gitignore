@@ -15,4 +15,4 @@ __pycache__
 *.hdf5
 kaggle.json
 build/
-dist/
+*.whl
