@@ -9,6 +9,7 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras import callbacks
+import tensorflow_addons as tfa
 from sklearn.metrics import classification_report
 
 from src.model import get_model
@@ -31,7 +32,10 @@ def get_optimizer(cfg):
 
 def get_loss(cfg):
     if hasattr(cfg.train, "loss"):
-        return tf.keras.losses.get(dict(**cfg.train.loss))
+        if cfg.train.loss.class_name == "focal_loss":
+            return tfa.losses.SigmoidFocalCrossEntropy(**cfg.train.loss.config)
+        else:
+            return tf.keras.losses.get(dict(**cfg.train.loss))
     return CategoricalCrossentropy(from_logits=True, label_smoothing=0.1)
 
 

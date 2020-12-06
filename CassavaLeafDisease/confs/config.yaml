@@ -1,4 +1,4 @@
-title: "baseline"
+title: "focal_loss"
 gpu: 0
 n_classes: 5
 image_size: 256
@@ -17,10 +17,11 @@ train:
     config:
       learning_rate: ${train.initial_lr}
   loss:
-    class_name: CategoricalCrossentropy
+    # class_name: CategoricalCrossentropy
+    class_name: focal_loss
     config:
       from_logits: True
-      label_smoothing: 0.2
+      # label_smoothing: 0.2
   lr_schedule:
     class_name: manual_lr_scheduler
     config:

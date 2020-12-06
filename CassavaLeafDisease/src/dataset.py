@@ -94,6 +94,10 @@ class DatasetGenerator:
         self.files_and_labels_gen = self._get_files_and_labels_generator()
         return self
 
+    def __del__(self):
+        if hasattr(self, "process_pool"):
+            self.process_pool.terminate()
+
     def __next__(self):
         self._prefetch()
         if self.queue.empty():
@@ -155,9 +159,19 @@ class TestDatasetGenerator(DatasetGenerator):
         self.files_and_labels_gen = self._get_files_and_labels_generator()
 
 
-def get_train_val_dataset(cfg, test_ratio=0.2):
+def get_train_val_dataset(cfg, test_ratio=0.2, is_train=False):
     n_classes = cfg.n_classes
     df = pd.read_csv(TRAIN_CSV)
+    if not is_train:
+        gen = DatasetGenerator(
+            df,
+            is_train=False,
+            n_classes=n_classes,
+            batch_size=cfg.train.batch_size,
+            image_size=cfg.image_size,
+        )
+        return gen, None
+
     train_df, val_df = train_test_split(df, test_size=test_ratio, stratify=df.label)
     train_gen = DatasetGenerator(
         train_df,

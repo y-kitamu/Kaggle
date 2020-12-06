@@ -1,10 +1,13 @@
 import math
+import logging
 
 import numpy as np
 
 from src.constant import OUTPUT_ROOT
 from src.model import get_model
 from src.utility import set_gpu
+
+log = logging.getLogger(__name__)
 
 
 def get_and_load_model(cfg, model_weights):
@@ -14,6 +17,7 @@ def get_and_load_model(cfg, model_weights):
 
 
 def evaluate(cfg, dataset, fold_idx=0, weights=["best_val_acc", "best_val_loss"]):
+    log.info("Start evaluation.")
     set_gpu(cfg.gpu)
 
     model_dir = OUTPUT_ROOT / cfg.title
@@ -26,8 +30,13 @@ def evaluate(cfg, dataset, fold_idx=0, weights=["best_val_acc", "best_val_loss"]
     labels = np.zeros((dataset.samples, cfg.n_classes))
     max_idx = math.ceil(dataset.samples / dataset.batch_size)
     start = 0
+    log.info("Evaluate data num : {}".format(dataset.samples))
+    log.info("Batch size        : {}".format(dataset.batch_size))
+    log.info("Fold index        : {}".format(fold_idx))
+    log.info("Weights           : {}".format(", ".join(
+        ["{}{}.hdf5".format(weight, fold_idx) for weight in weights])))
     for idx, (imgs, ls) in enumerate(dataset):
-        # print("\r {} / {}".format(idx * dataset.batch_size, dataset.samples), end="")
+        print("\r {} / {}".format(idx * dataset.batch_size, dataset.samples), end="")
         pred = sum([model(imgs, training=False) for model in models])
         end = start + pred.shape[0]
         preds[start:end] = pred.numpy()[:]
