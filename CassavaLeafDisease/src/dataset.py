@@ -1,7 +1,6 @@
-"""Dataloader for training, validation, test
+"""gDataloader for training, validation, test
 """
 import os
-import glob
 import math
 from queue import Queue
 from multiprocessing.pool import Pool
@@ -10,8 +9,6 @@ import cv2
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
 from src.constant import DATA_ROOT, N_CLASSES, BATCH_SIZE, IMAGE_SIZE
 
 # data loader
@@ -61,31 +58,36 @@ def fetch(filenames, labels, data_dir, image_size, is_train):
     return images, labels
 
 
-class DatasetGenerator:
-    """
-    """
+class BaseDatasetGenerator:
 
     def __init__(self,
-                 df,
-                 is_train=True,
-                 data_dir=str(TRAIN_DATA_DIR),
+                 filenames,
+                 labels=None,
+                 data_dir=str(TEST_DATA_DIR),
                  n_classes=N_CLASSES,
                  image_size=IMAGE_SIZE,
                  batch_size=BATCH_SIZE,
                  n_prefetch=4):
-        self.filenames = df.image_id.to_numpy()
-        self.labels = np.identity(n_classes)[df.label.to_numpy().astype(np.int)]
+        self.filenames = filenames
+        self.labels = labels
         self.data_dir = data_dir
-        self.is_train = is_train
         self.n_classes = n_classes
         self.image_size = image_size
         self.batch_size = batch_size
-        self.samples = len(df)
+        self.samples = len(self.filenames)
+        self._is_train = None
 
         # for prefetch
         self.process_pool = Pool(processes=n_prefetch)
         self.queue = Queue(maxsize=n_prefetch)
         self.files_and_labels_gen = self._get_files_and_labels_generator()
+
+    def is_train(self):
+        if self._is_train is None:
+            raise ValueError(
+                "`self._is_train` must be True or False, not None. You should set the value in the constructor of the inheritance of BaseDatasetGenerator."
+            )
+        return self._is_train
 
     def __len__(self):
         return len(self.filenames)
@@ -112,57 +114,54 @@ class DatasetGenerator:
                     fetch, (filenames, labels, self.data_dir, self.image_size, self.is_train)))
 
     def _get_files_and_labels_generator(self):
+        raise NotImplementedError("Function _get_files_and_labels_generator is not implemented.")
+
+
+class TrainDatasetGenerator(BaseDatasetGenerator):
+    """
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_train = True
+
+    def _get_files_and_labels_generator(self):
         steps_per_epoch = math.ceil(self.samples / self.batch_size)
-        if self.is_train:
-            while True:
-                index_arr = np.arange(steps_per_epoch * self.batch_size, dtype=np.int)
-                index_arr[self.samples:] = np.random.randint(index_arr.shape[0] - self.samples)
-                shuffled = np.random.permutation(index_arr)
-                for i in range(steps_per_epoch):
-                    start = i * self.batch_size
-                    end = start + self.batch_size
-                    yield self.filenames[shuffled[start:end]], self.labels[shuffled[start:end]]
-        else:
-            while True:
-                for i in range(steps_per_epoch):
-                    start = i * self.batch_size
-                    end = min(start + self.batch_size, len(self.filenames))
-                    if hasattr(self, "labels"):
-                        yield self.filenames[start:end], self.labels[start:end]
-                    else:
-                        yield self.filenames[start:end], None
+        while True:
+            index_arr = np.arange(steps_per_epoch * self.batch_size, dtype=np.int)
+            index_arr[self.samples:] = np.random.randint(index_arr.shape[0] - self.samples)
+            shuffled = np.random.permutation(index_arr)
+            for i in range(steps_per_epoch):
+                start = i * self.batch_size
+                end = start + self.batch_size
+                yield self.filenames[shuffled[start:end]], self.labels[shuffled[start:end]]
 
 
-class TestDatasetGenerator(DatasetGenerator):
+class TestDatasetGenerator(BaseDatasetGenerator):
 
-    def __init__(self,
-                 directory,
-                 n_classes=N_CLASSES,
-                 image_size=IMAGE_SIZE,
-                 batch_size=BATCH_SIZE,
-                 n_prefetch=4):
-        self.filenames = sorted(
-            [os.path.basename(fname) for fname in glob.glob(os.path.join(directory, "*.jpg"))])
-        self.data_dir = directory
-        self.n_classes = n_classes
-        self.image_size = image_size
-        self.batch_size = batch_size
-        self.samples = len(self.filenames)
-        self.is_train = False
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_train = False
 
-        # for prefetch
-        self.process_pool = Pool(processes=n_prefetch)
-        self.queue = Queue(maxsize=n_prefetch)
-        self.files_and_labels_gen = self._get_files_and_labels_generator()
+    def _get_files_and_labels_generator(self):
+        steps_per_epoch = math.ceil(self.samples / self.batch_size)
+        while True:
+            for i in range(steps_per_epoch):
+                start = i * self.batch_size
+                end = min(start + self.batch_size, len(self.filenames))
+                if self.labels is not None:
+                    yield self.filenames[start:end], self.labels[start:end]
+                else:
+                    yield self.filenames[start:end], None
 
 
 def get_train_val_dataset(cfg, test_ratio=0.2, is_train=False):
     n_classes = cfg.n_classes
     df = pd.read_csv(TRAIN_CSV)
     if not is_train:
-        gen = DatasetGenerator(
-            df,
-            is_train=False,
+        gen = TestDatasetGenerator(
+            df.image_id.to_numpy(),
+            df.labels.to_numpy().astype(np.int),
             n_classes=n_classes,
             batch_size=cfg.train.batch_size,
             image_size=cfg.image_size,
@@ -170,7 +169,7 @@ def get_train_val_dataset(cfg, test_ratio=0.2, is_train=False):
         return gen, None
 
     train_df, val_df = train_test_split(df, test_size=test_ratio, stratify=df.label)
-    train_gen = DatasetGenerator(
+    train_gen = TrainDatasetGenerator(
         train_df,
         is_train=True,
         n_classes=n_classes,
@@ -178,7 +177,7 @@ def get_train_val_dataset(cfg, test_ratio=0.2, is_train=False):
         image_size=cfg.image_size,
     )
 
-    val_gen = DatasetGenerator(
+    val_gen = TestDatasetGenerator(
         val_df,
         is_train=False,
         n_classes=n_classes,
@@ -192,14 +191,14 @@ def get_kfold_dataset(cfg):
     df = pd.read_csv(TRAIN_CSV)
     kf = StratifiedKFold(n_splits=cfg.train.k_fold, shuffle=True)
     for train_idx, val_idx in kf.split(df.image_id, df.label):
-        train_gen = DatasetGenerator(df.iloc[train_idx],
-                                     is_train=True,
-                                     n_classes=cfg.n_classes,
-                                     batch_size=cfg.train.batch_size,
-                                     image_size=cfg.image_size)
-        val_gen = DatasetGenerator(df.iloc[val_idx],
-                                   is_train=False,
-                                   n_classes=cfg.n_classes,
-                                   batch_size=cfg.train.batch_size * 2,
-                                   image_size=cfg.image_size)
+        train_gen = TrainDatasetGenerator(df.iloc[train_idx],
+                                          is_train=True,
+                                          n_classes=cfg.n_classes,
+                                          batch_size=cfg.train.batch_size,
+                                          image_size=cfg.image_size)
+        val_gen = TestDatasetGenerator(df.iloc[val_idx],
+                                       is_train=False,
+                                       n_classes=cfg.n_classes,
+                                       batch_size=cfg.train.batch_size * 2,
+                                       image_size=cfg.image_size)
         yield train_gen, val_gen

@@ -1,7 +1,9 @@
 import os
-import numpy as np
 import csv
 import logging
+
+import numpy as np
+import tensorflow as tf
 
 from src.constant import OUTPUT_ROOT
 from src.dataset import TestDatasetGenerator
@@ -25,9 +27,17 @@ def predict(cfg,
             model_dir=os.path.join(os.path.dirname(__file__), "../results/baseline/"),
             model_weights=["best_val_acc0.hdf5"],
             test_data_dir="../input/cassava-leaf-disease-classification"):
+    """Prediction script for submission
+    Args:
+        cfg (OmegaConf.DefaultDict) : Configurations imported from yaml file by using  hydra
+        output_filename (str)       : Output csv filename. If None
+        model_dir (str)             : Model direcotry.
+        model_weights (list of str) : Model weights to be used.
+            This function calculate predictons per each model and take the average of them.
+        test_data_dir (str)         : target files
+    """
     set_gpu(cfg.gpu)
     test_ds = TestDatasetGenerator(test_data_dir)
-
     log.info("Loading models...")
     models = [get_and_load_model(cfg, os.path.join(model_dir, basename)) for basename in model_weights]
     models = [model for model in models if model is not None]
@@ -50,4 +60,4 @@ def predict(cfg,
             csv_writer.writerow([fname, pred])
 
     log.info("Successfully finish prediction!")
-    return preds
+    return preds, test_ds.filenames
