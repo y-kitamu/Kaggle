@@ -1,4 +1,4 @@
-title: "focal_loss"
+title: "test"
 gpu: 0
 n_classes: 5
 image_size: 256
