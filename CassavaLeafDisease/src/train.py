@@ -19,7 +19,7 @@ from src.lr_scheduler import manual_lr_scheduler
 from src.callbacks import ProgressLogger
 from src.utility import set_gpu
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
-from src.evaluate import evaluate
+from src.predict import evaluate
 
 log = logging.getLogger(__name__)
 
@@ -157,6 +157,12 @@ def setup(cfg, fold_idx=0):
 
 
 def train(cfg):
+    title = "============================== Start Train : {} ==============================".format(
+        cfg.title)
+    log.info("=" * len(title))
+    log.info(title)
+    log.info("=" * len(title))
+
     train_batch_size = cfg.train.batch_size
     val_batch_size = train_batch_size * 2
 

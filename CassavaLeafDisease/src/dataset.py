@@ -17,6 +17,14 @@ TRAIN_DATA_DIR = DATA_ROOT / "train_images"
 TEST_DATA_DIR = DATA_ROOT / "test_images"
 
 
+def dense_to_onehot(array, n_classes=5):
+    if array is None or len(array.shape) == 2:
+        return array
+    if len(array.shape) == 1:
+        return np.identity(n_classes)[array]
+    raise ValueError("Input array has invalid shape : {}".format(array.shape))
+
+
 def scale(affine_mat, scale_x, scale_y=None):
     scale_y = scale_y or scale_x
     return np.matmul(np.array([[scale_x, 0], [0, scale_y]]), affine_mat)
@@ -63,13 +71,13 @@ class BaseDatasetGenerator:
     def __init__(self,
                  filenames,
                  labels=None,
-                 data_dir=str(TEST_DATA_DIR),
+                 data_dir=str(TRAIN_DATA_DIR),
                  n_classes=N_CLASSES,
                  image_size=IMAGE_SIZE,
                  batch_size=BATCH_SIZE,
                  n_prefetch=4):
         self.filenames = filenames
-        self.labels = labels
+        self.labels = dense_to_onehot(labels, n_classes)
         self.data_dir = data_dir
         self.n_classes = n_classes
         self.image_size = image_size
@@ -82,6 +90,7 @@ class BaseDatasetGenerator:
         self.queue = Queue(maxsize=n_prefetch)
         self.files_and_labels_gen = self._get_files_and_labels_generator()
 
+    @property
     def is_train(self):
         if self._is_train is None:
             raise ValueError(
@@ -104,11 +113,16 @@ class BaseDatasetGenerator:
 
     def __next__(self):
         self._prefetch()
+        if self.queue.empty():
+            self.files_and_labels_gen = self._get_files_and_labels_generator()
+            raise StopIteration
         return self.queue.get().get()
 
     def _prefetch(self):
         while not self.queue.full():
             filenames, labels = next(self.files_and_labels_gen)
+            if filenames is None:
+                break
             self.queue.put(
                 self.process_pool.apply_async(
                     fetch, (filenames, labels, self.data_dir, self.image_size, self.is_train)))
@@ -139,29 +153,36 @@ class TrainDatasetGenerator(BaseDatasetGenerator):
 
 class TestDatasetGenerator(BaseDatasetGenerator):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, with_label=True, **kwargs):
         super().__init__(*args, **kwargs)
         self._is_train = False
+        self.with_label = self.labels is not None and with_label
 
     def _get_files_and_labels_generator(self):
         steps_per_epoch = math.ceil(self.samples / self.batch_size)
+        for i in range(steps_per_epoch):
+            start = i * self.batch_size
+            end = min(start + self.batch_size, len(self.filenames))
+            if self.with_label:
+                yield self.filenames[start:end], self.labels[start:end]
+            else:
+                yield self.filenames[start:end], None
         while True:
-            for i in range(steps_per_epoch):
-                start = i * self.batch_size
-                end = min(start + self.batch_size, len(self.filenames))
-                if self.labels is not None:
-                    yield self.filenames[start:end], self.labels[start:end]
-                else:
-                    yield self.filenames[start:end], None
+            yield None, None
 
 
-def get_train_val_dataset(cfg, test_ratio=0.2, is_train=False):
+def get_train_val_dataset(cfg,
+                          data_dir=TRAIN_DATA_DIR,
+                          csv_fname=TRAIN_CSV,
+                          test_ratio=0.2,
+                          is_train=False):
     n_classes = cfg.n_classes
-    df = pd.read_csv(TRAIN_CSV)
+    df = pd.read_csv(csv_fname)
     if not is_train:
         gen = TestDatasetGenerator(
             df.image_id.to_numpy(),
-            df.labels.to_numpy().astype(np.int),
+            labels=df.label.to_numpy().astype(np.int),
+            data_dir=data_dir,
             n_classes=n_classes,
             batch_size=cfg.train.batch_size,
             image_size=cfg.image_size,
@@ -170,16 +191,18 @@ def get_train_val_dataset(cfg, test_ratio=0.2, is_train=False):
 
     train_df, val_df = train_test_split(df, test_size=test_ratio, stratify=df.label)
     train_gen = TrainDatasetGenerator(
-        train_df,
-        is_train=True,
+        train_df.image_id.to_numpy(),
+        train_df.label.to_numpy().astype(np.int),
+        data_dir=data_dir,
         n_classes=n_classes,
         batch_size=cfg.train.batch_size,
         image_size=cfg.image_size,
     )
 
     val_gen = TestDatasetGenerator(
-        val_df,
-        is_train=False,
+        val_df.image_id.to_numpy(),
+        df.label.to_numpy().astype(np.int),
+        data_dir=data_dir,
         n_classes=n_classes,
         batch_size=cfg.train.batch_size * 2,
         image_size=cfg.image_size,
@@ -191,13 +214,15 @@ def get_kfold_dataset(cfg):
     df = pd.read_csv(TRAIN_CSV)
     kf = StratifiedKFold(n_splits=cfg.train.k_fold, shuffle=True)
     for train_idx, val_idx in kf.split(df.image_id, df.label):
-        train_gen = TrainDatasetGenerator(df.iloc[train_idx],
-                                          is_train=True,
+        train_df = df.iloc[train_idx]
+        train_gen = TrainDatasetGenerator(train_df.image_id.to_numpy(),
+                                          train_df.label.to_numpy(),
                                           n_classes=cfg.n_classes,
                                           batch_size=cfg.train.batch_size,
                                           image_size=cfg.image_size)
-        val_gen = TestDatasetGenerator(df.iloc[val_idx],
-                                       is_train=False,
+        val_df = df.iloc[val_idx]
+        val_gen = TestDatasetGenerator(val_df.image_id.to_numpy(),
+                                       val_df.label.to_numpy(),
                                        n_classes=cfg.n_classes,
                                        batch_size=cfg.train.batch_size * 2,
                                        image_size=cfg.image_size)
