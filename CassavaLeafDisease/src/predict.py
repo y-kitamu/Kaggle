@@ -1,12 +1,12 @@
 import os
 import csv
 import logging
+import glob
 
 import numpy as np
-import tensorflow as tf
 
 from src.constant import OUTPUT_ROOT
-from src.dataset import TestDatasetGenerator
+from src.dataset import get_test_dataset
 from src.model import get_model
 from src.utility import set_gpu
 
@@ -22,42 +22,63 @@ def get_and_load_model(cfg, model_weights):
     return model
 
 
-def predict(cfg,
-            output_filename="./submission.csv",
-            model_dir=os.path.join(os.path.dirname(__file__), "../results/baseline/"),
-            model_weights=["best_val_acc0.hdf5"],
-            test_data_dir="../input/cassava-leaf-disease-classification"):
+def predict_for_submission(cfg,
+                           dataset,
+                           output_filename="./submission.csv",
+                           model_dir=os.path.join(os.path.dirname(__file__), "../results/baseline/"),
+                           model_weights=["best_val_acc0.hdf5"]):
     """Prediction script for submission
     Args:
-        cfg (OmegaConf.DefaultDict) : Configurations imported from yaml file by using  hydra
-        output_filename (str)       : Output csv filename. If None
-        model_dir (str)             : Model direcotry.
-        model_weights (list of str) : Model weights to be used.
+        cfg (OmegaConf.DefaultDict)                : Configurations imported from yaml file by hydra
+        dataset (src.dataset.TestDatasetGenerator) :
+        output_filename (str)                      : Output csv filename. If None, no output is saved.
+        model_dir (str)                            : Model direcotry.
+        model_weights (list of str)                : Model weights to be used.
             This function calculate predictons per each model and take the average of them.
-        test_data_dir (str)         : target files
+        test_data_dir (str)                        : target files
     """
     set_gpu(cfg.gpu)
-    test_ds = TestDatasetGenerator(test_data_dir)
     log.info("Loading models...")
     models = [get_and_load_model(cfg, os.path.join(model_dir, basename)) for basename in model_weights]
     models = [model for model in models if model is not None]
 
+    dataset.with_label = False
+    scores, _ = predict(dataset, models, cfg.n_classes)
+    preds = scores.argmax(axis=1)
+
+    if output_filename is not None:
+        log.info("Finish prediction. Write result to csv.")
+        with open(output_filename, 'w') as f:
+            csv_writer = csv.writer(f, lineterminator="\n")
+            csv_writer.writerow(["image_id", "label"])
+            for fname, pred in zip(dataset.filenames, preds):
+                csv_writer.writerow([fname, pred])
+
+    log.info("Successfully finish prediction!")
+    return scores, dataset.labels, dataset.filenames
+
+
+def predict(dataset, models, n_classes=5):
+    """Predict dataset using models.
+    Args:
+        dataset (iterable)                                :
+        models (list of tf.keras.Model or tf.keras.Model) :
+        n_classes (int)                                   :
+    Retrun:
+        np.ndarray : 2D array of predictions ([Num Samples, Num Classes])
+    """
     log.info("Start prediction")
-    preds = np.zeros((len(test_ds), cfg.n_classes))
+    log.info("Evaluate data num : {}".format(dataset.samples))
+    log.info("Batch size        : {}".format(dataset.batch_size))
+    if not isinstance(models, (list, tuple)):
+        models = [models]
+
+    preds = np.zeros((len(dataset), n_classes))
     start = 0
-    for idx, imgs in enumerate(test_ds):
-        print("\r {}".format(idx), end="")
+    for idx, imgs in enumerate(dataset):
+        print("\r {} / {}    ".format(idx * dataset.batch_size, dataset.samples), end="")
         end = start + imgs.shape[0]
         preds[start:end] = sum([model(imgs, training=False) for model in models])
         start = end
-
-    log.info("Finish prediction. Write result to csv.")
-    preds = preds.argmax(axis=1)
-    with open(output_filename, 'w') as f:
-        csv_writer = csv.writer(f, lineterminator="\n")
-        csv_writer.writerow(["image_id", "label"])
-        for fname, pred in zip(test_ds.filenames, preds):
-            csv_writer.writerow([fname, pred])
-
-    log.info("Successfully finish prediction!")
-    return preds, test_ds.filenames
+    preds /= len(models)
+    return preds, dataset.labels

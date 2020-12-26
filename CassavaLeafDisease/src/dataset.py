@@ -2,6 +2,7 @@
 """
 import os
 import math
+import glob
 from queue import Queue
 from multiprocessing.pool import Pool
 
@@ -18,6 +19,15 @@ TEST_DATA_DIR = DATA_ROOT / "test_images"
 
 
 def dense_to_onehot(array, n_classes=5):
+    """Convert categorical label to onehot label.
+    Args:
+        array (np.ndarray) : If array's dimension is 1, convert to one_hot style.
+           Else if the dimension is 2 or array is None, return as is.
+           Otherwise, raise ValueError.
+        n_classes (int)    :
+    Return:
+        np.ndarray : one-hot encoded label array (2D array)
+    """
     if array is None or len(array.shape) == 2:
         return array
     if len(array.shape) == 1:
@@ -42,6 +52,18 @@ def augment(affine_mat, image_size):
 
 
 def preprocess(filename, image_size, is_train):
+    """Load image and apply augment.
+    At first image is scaled from (original width, original height) to (image_size, image_size).
+    Then, augmentation is applied to the image.
+
+    Args:
+        filename (str)   : image filename to be loaded.
+        image_size (int) : output image size
+        is_train (bool)  : If True, augmentation is applied to the image,
+            else no augmentation is applied.
+    Return:
+        np.ndarray : image data array of shape [image_size, image_size, channel]
+    """
     image = cv2.imread(os.path.join(filename)) / 255.0
     affine_mat = np.array([[1, 0, 0], [0, 1, 0]])
     affine_mat = scale(affine_mat, image_size / image.shape[1], image_size / image.shape[0])
@@ -54,7 +76,15 @@ def preprocess(filename, image_size, is_train):
 def fetch(filenames, labels, data_dir, image_size, is_train):
     """Create batch data. Read and augment images.
     Args:
-        filenames (list of str) : list of image filenames
+        filenames (list of str) : list of image filenames (basenames)
+        labels (np.ndarray)     : label array
+        data_dir (str)          : Path to the directory where image files exis.
+        image_size (int)        : output image size
+        is_train (bool)         : If True, augmentation is applied to images.
+    Return:
+        np.ndarray : image array of [Batch size, image_size, image_size, channel]
+        np.ndarray : label array (one-hot or categorical encoded).
+            If `labels` is None, This variable is not returned.
     """
     images = np.zeros((len(filenames), image_size, image_size, 3))
     for idx, fname in enumerate(filenames):
@@ -67,6 +97,17 @@ def fetch(filenames, labels, data_dir, image_size, is_train):
 
 
 class BaseDatasetGenerator:
+    """Base dataloader.
+
+    Args:
+        filenames (list of str) : list of input image filenames (basenames)
+        labels (np.ndarray)     : True label's array correspond to `filenames`
+        data_dir (str)          : Path to the directory where input images exist.
+        n_classes (int)         :
+        image_size (int)        : output image size
+        batch_size (int)        :
+        n_prefetch (int)        : Number of prefetched batches.
+    """
 
     def __init__(self,
                  filenames,
@@ -78,6 +119,8 @@ class BaseDatasetGenerator:
                  n_prefetch=4):
         self.filenames = filenames
         self.labels = dense_to_onehot(labels, n_classes)
+        if self.labels is not None:
+            assert len(self.filenames) == len(self.labels)
         self.data_dir = data_dir
         self.n_classes = n_classes
         self.image_size = image_size
@@ -152,6 +195,8 @@ class TrainDatasetGenerator(BaseDatasetGenerator):
 
 
 class TestDatasetGenerator(BaseDatasetGenerator):
+    """
+    """
 
     def __init__(self, *args, with_label=True, **kwargs):
         super().__init__(*args, **kwargs)
@@ -176,6 +221,18 @@ def get_train_val_dataset(cfg,
                           csv_fname=TRAIN_CSV,
                           test_ratio=0.2,
                           is_train=False):
+    """Read csv, split datas to train and val and get dataset generator
+    Args:
+        cfg (Omegaconf.DefaultDict) : configurations imported by hydra.
+        data_dir (str) : Path to the directory where input images exist.
+        csv_fname (str) : Path to the csv file in which image filenames and true labels are listed.
+        test_ratio (float) : test data ratio. (Only used when is_train == True)
+        is_train (bool) : If True, dataset is split into train and validation set.
+    Return:
+        BaseDatasetGenerator : Training dataset generator
+        BaseDatasetGenerator : If `is_train` is False, this variable is None.
+            Else, validation dataset's generator is returned.
+    """
     n_classes = cfg.n_classes
     df = pd.read_csv(csv_fname)
     if not is_train:
@@ -211,6 +268,13 @@ def get_train_val_dataset(cfg,
 
 
 def get_kfold_dataset(cfg):
+    """Return generator of datasets for k-fold cross validation.
+    Args:
+        cfg (OmegaConf.DefaultDict) : configurations
+    Return:
+        generator : generator that yields
+            (BaseDatasetGenerator, BaseDatasetGenerator) for `cfg.train.k_fold` times.
+    """
     df = pd.read_csv(TRAIN_CSV)
     kf = StratifiedKFold(n_splits=cfg.train.k_fold, shuffle=True)
     for train_idx, val_idx in kf.split(df.image_id, df.label):
@@ -227,3 +291,15 @@ def get_kfold_dataset(cfg):
                                        batch_size=cfg.train.batch_size * 2,
                                        image_size=cfg.image_size)
         yield train_gen, val_gen
+
+
+def get_test_dataset(test_data_dir="../input/cassava-leaf-disease-classification"):
+    """Get dataset for test.
+    Args:
+        test_data_dir (str) : Path to the directory where input images exist.
+    Return:
+        TestDatasetGenerator : test dataset generator
+    """
+    file_list = [os.path.basename(fname) for fname in glob.glob(os.path.join(test_data_dir, "*"))]
+    test_ds = TestDatasetGenerator(file_list, with_label=False)
+    return test_ds

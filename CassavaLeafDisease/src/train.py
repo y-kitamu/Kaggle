@@ -19,7 +19,7 @@ from src.lr_scheduler import manual_lr_scheduler
 from src.callbacks import ProgressLogger
 from src.utility import set_gpu
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
-from src.predict import evaluate
+from src.predict import predict, get_and_load_model
 
 log = logging.getLogger(__name__)
 
@@ -189,7 +189,9 @@ def train(cfg):
                   callbacks=callback_list)
 
         log.info("start evaluation")
-        pred, true = evaluate(cfg, val_ds, idx)
+        models = get_and_load_model(
+            cfg, ["best_val_acc{}.hdf5".format(idx), "best_val_loss{}.hdf5".format(idx)])
+        pred, true = predict(val_ds, models, cfg.n_classes)
         preds.append(pred)
         trues.append(true)
 
