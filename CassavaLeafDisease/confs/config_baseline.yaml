@@ -1,12 +1,13 @@
 title: "baseline"
 gpu: 0
 n_classes: 5
-image_size: 256
+image_width: 512
+image_height: 512
 n_channel: 3
 train:
   k_fold: 5
-  epochs: 91
-  batch_size: 32
+  epochs: 31
+  batch_size: 8
   initial_lr: 0.001
   model:
     class_name: efficientnetb0
@@ -17,11 +18,10 @@ train:
     config:
       learning_rate: ${train.initial_lr}
   loss:
-    # class_name: CategoricalCrossentropy
-    class_name: focal_loss
+    class_name: CategoricalCrossentropy
     config:
       from_logits: True
-      # label_smoothing: 0.2
+      label_smoothing: 0.2
   lr_schedule:
     class_name: manual_lr_scheduler
     config:

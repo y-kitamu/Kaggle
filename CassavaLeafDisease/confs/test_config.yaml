@@ -1,12 +1,13 @@
 title: "test"
 gpu: 0
 n_classes: 5
-image_size: 256
+image_width: 800
+image_height: 600
 n_channel: 3
 train:
   k_fold: 5
-  epochs: 91
-  batch_size: 32
+  epochs: 2
+  batch_size: 4
   initial_lr: 0.001
   model:
     class_name: efficientnetb0
