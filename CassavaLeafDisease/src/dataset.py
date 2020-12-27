@@ -43,10 +43,17 @@ def scale(affine_mat, scale_x, scale_y=None):
 
 
 def random_shift(affine_mat, max_shift_x, max_shift_y):
-    shift_x = random.random() * max_shift_x
-    shift_y = random.random() * max_shift_y
+    shift_x = np.clip(np.random.normal(loc=0.5, scale=0.16), 0, 1) * max_shift_x
+    shift_y = np.clip(np.random.normal(loc=0.5, scale=0.16), 0, 1) * max_shift_y
     affine_mat[0, 2] -= shift_x
     affine_mat[1, 2] -= shift_y
+    return affine_mat
+
+
+def rotate(affine_mat, angle, center_x, center_y):
+    rot = cv2.getRotationMatrix2D((center_x, center_y), angle, scale=1.0)
+    affine_mat = np.dot(rot[:, :2], affine_mat)
+    affine_mat[:, 2] += rot[:, 2]
     return affine_mat
 
 
@@ -54,10 +61,15 @@ def horizontal_flip(affine_mat, width):
     return np.matmul(np.array([[-1, 0], [0, 1]]), affine_mat) + np.array([[0, 0, width], [0, 0, 0]])
 
 
-def augment(affine_mat, image_width):
-    # horizontal flip
+def augment(affine_mat, image_width, image_height, max_angle=30):
+    # random flip (horizontal)
     if np.random.rand() > 0.5:
         affine_mat = horizontal_flip(affine_mat, image_width)
+
+    # random rotate
+    angle = 2 * max_angle * np.random.rand() - max_angle
+    rotate(affine_mat, angle, image_width / 2, image_height / 2)
+
     return affine_mat
 
 
@@ -77,12 +89,16 @@ def preprocess(filename, image_width, image_height, is_train):
     """
     image = cv2.imread(os.path.join(filename)) / 255.0
     affine_mat = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
-    # if is_train:
-    #     affine_mat = augment(affine_mat, image_width)
+    if is_train:
+        affine_mat = augment(affine_mat, image.shape[1], image.shape[0])
     affine_mat = random_shift(affine_mat, max(0, image.shape[1] - image_width),
                               max(0, image.shape[0] - image_height))
     image = cv2.warpAffine(image, affine_mat, (image_width, image_height))
-    return image
+
+    if is_train:
+        image += np.random.rand(*image.shape) * 0.1 - 0.05
+        image = np.clip(image, 0.0, 1.0)
+    return image.astype(np.float32)
 
 
 def fetch(filenames, labels, data_dir, image_width, image_height, is_train):
@@ -214,12 +230,21 @@ class TestDatasetGenerator(BaseDatasetGenerator):
     """
     """
 
-    def __init__(self, *args, with_label=True, **kwargs):
+    def __init__(self, *args, with_label=True, repeat=False, **kwargs):
+        if repeat:
+            self._get_files_and_labels_generator = self._repeat_generator
+        else:
+            self._get_files_and_labels_generator = self._generator
         super().__init__(*args, **kwargs)
         self._is_train = False
         self.with_label = self.labels is not None and with_label
 
-    def _get_files_and_labels_generator(self):
+    def _repeat_generator(self):
+        while True:
+            for img, label in self._generator():
+                yield img, label
+
+    def _generator(self):
         steps_per_epoch = math.ceil(self.samples / self.batch_size)
         for i in range(steps_per_epoch):
             start = i * self.batch_size
@@ -228,8 +253,6 @@ class TestDatasetGenerator(BaseDatasetGenerator):
                 yield self.filenames[start:end], self.labels[start:end]
             else:
                 yield self.filenames[start:end], None
-        while True:
-            yield None, None
 
 
 def get_train_val_dataset(cfg,
@@ -312,6 +335,7 @@ def get_kfold_dataset(cfg):
             val_df.label.to_numpy(),
             n_classes=cfg.n_classes,
             batch_size=cfg.train.batch_size * 2,
+            repeat=True,
             image_width=cfg.image_width,
             image_height=cfg.image_height,
         )
