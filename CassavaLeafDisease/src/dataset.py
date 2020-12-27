@@ -3,6 +3,7 @@
 import os
 import math
 import glob
+import random
 from queue import Queue
 from multiprocessing.pool import Pool
 
@@ -10,7 +11,8 @@ import cv2
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from src.constant import DATA_ROOT, N_CLASSES, BATCH_SIZE, IMAGE_SIZE
+
+from src.constant import DATA_ROOT, N_CLASSES, BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT
 
 # data loader
 TRAIN_CSV = DATA_ROOT / "train.csv"
@@ -40,56 +42,67 @@ def scale(affine_mat, scale_x, scale_y=None):
     return np.matmul(np.array([[scale_x, 0], [0, scale_y]]), affine_mat)
 
 
+def random_shift(affine_mat, max_shift_x, max_shift_y):
+    shift_x = random.random() * max_shift_x
+    shift_y = random.random() * max_shift_y
+    affine_mat[0, 2] -= shift_x
+    affine_mat[1, 2] -= shift_y
+    return affine_mat
+
+
 def horizontal_flip(affine_mat, width):
     return np.matmul(np.array([[-1, 0], [0, 1]]), affine_mat) + np.array([[0, 0, width], [0, 0, 0]])
 
 
-def augment(affine_mat, image_size):
+def augment(affine_mat, image_width):
     # horizontal flip
     if np.random.rand() > 0.5:
-        affine_mat = horizontal_flip(affine_mat, image_size)
+        affine_mat = horizontal_flip(affine_mat, image_width)
     return affine_mat
 
 
-def preprocess(filename, image_size, is_train):
+def preprocess(filename, image_width, image_height, is_train):
     """Load image and apply augment.
-    At first image is scaled from (original width, original height) to (image_size, image_size).
+    At first image is scaled from (original width, original height) to (image_width, image_height).
     Then, augmentation is applied to the image.
 
     Args:
         filename (str)   : image filename to be loaded.
-        image_size (int) : output image size
+        image_width (int) : output image width
+        image_height (int) : output image height
         is_train (bool)  : If True, augmentation is applied to the image,
             else no augmentation is applied.
     Return:
-        np.ndarray : image data array of shape [image_size, image_size, channel]
+        np.ndarray : image data array of shape [image_width, image_height, channel]
     """
     image = cv2.imread(os.path.join(filename)) / 255.0
-    affine_mat = np.array([[1, 0, 0], [0, 1, 0]])
-    affine_mat = scale(affine_mat, image_size / image.shape[1], image_size / image.shape[0])
+    affine_mat = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
     # if is_train:
-    #     affine_mat = augment(affine_mat, image_size)
-    image = cv2.warpAffine(image, affine_mat, (image_size, image_size))
+    #     affine_mat = augment(affine_mat, image_width)
+    affine_mat = random_shift(affine_mat, max(0, image.shape[1] - image_width),
+                              max(0, image.shape[0] - image_height))
+    image = cv2.warpAffine(image, affine_mat, (image_width, image_height))
     return image
 
 
-def fetch(filenames, labels, data_dir, image_size, is_train):
+def fetch(filenames, labels, data_dir, image_width, image_height, is_train):
     """Create batch data. Read and augment images.
     Args:
         filenames (list of str) : list of image filenames (basenames)
         labels (np.ndarray)     : label array
         data_dir (str)          : Path to the directory where image files exis.
-        image_size (int)        : output image size
+        image_width (int)        : output image width
+        image_height (int)        : output image height
         is_train (bool)         : If True, augmentation is applied to images.
     Return:
-        np.ndarray : image array of [Batch size, image_size, image_size, channel]
+        np.ndarray : image array of [Batch size, image_height, image_width, channel]
         np.ndarray : label array (one-hot or categorical encoded).
             If `labels` is None, This variable is not returned.
     """
-    images = np.zeros((len(filenames), image_size, image_size, 3))
+    images = np.zeros((len(filenames), image_height, image_width, 3))
     for idx, fname in enumerate(filenames):
         filename = os.path.join(data_dir, fname)
-        image = preprocess(filename, image_size, is_train)
+        image = preprocess(filename, image_width, image_height, is_train)
         images[idx, ...] = image
     if labels is None:  # if test
         return images
@@ -104,7 +117,8 @@ class BaseDatasetGenerator:
         labels (np.ndarray)     : True label's array correspond to `filenames`
         data_dir (str)          : Path to the directory where input images exist.
         n_classes (int)         :
-        image_size (int)        : output image size
+        image_width (int)       : output image size
+        image_height (int)      : output image size
         batch_size (int)        :
         n_prefetch (int)        : Number of prefetched batches.
     """
@@ -114,7 +128,8 @@ class BaseDatasetGenerator:
                  labels=None,
                  data_dir=str(TRAIN_DATA_DIR),
                  n_classes=N_CLASSES,
-                 image_size=IMAGE_SIZE,
+                 image_width=IMAGE_WIDTH,
+                 image_height=IMAGE_HEIGHT,
                  batch_size=BATCH_SIZE,
                  n_prefetch=4):
         self.filenames = filenames
@@ -123,7 +138,8 @@ class BaseDatasetGenerator:
             assert len(self.filenames) == len(self.labels)
         self.data_dir = data_dir
         self.n_classes = n_classes
-        self.image_size = image_size
+        self.image_width = image_width
+        self.image_height = image_height
         self.batch_size = batch_size
         self.samples = len(self.filenames)
         self._is_train = None
@@ -167,8 +183,8 @@ class BaseDatasetGenerator:
             if filenames is None:
                 break
             self.queue.put(
-                self.process_pool.apply_async(
-                    fetch, (filenames, labels, self.data_dir, self.image_size, self.is_train)))
+                self.process_pool.apply_async(fetch, (filenames, labels, self.data_dir, self.image_width,
+                                                      self.image_height, self.is_train)))
 
     def _get_files_and_labels_generator(self):
         raise NotImplementedError("Function _get_files_and_labels_generator is not implemented.")
@@ -242,7 +258,8 @@ def get_train_val_dataset(cfg,
             data_dir=data_dir,
             n_classes=n_classes,
             batch_size=cfg.train.batch_size,
-            image_size=cfg.image_size,
+            image_width=cfg.image_width,
+            image_height=cfg.image_height,
         )
         return gen, None
 
@@ -253,7 +270,8 @@ def get_train_val_dataset(cfg,
         data_dir=data_dir,
         n_classes=n_classes,
         batch_size=cfg.train.batch_size,
-        image_size=cfg.image_size,
+        image_width=cfg.image_width,
+        image_height=cfg.image_height,
     )
 
     val_gen = TestDatasetGenerator(
@@ -262,7 +280,8 @@ def get_train_val_dataset(cfg,
         data_dir=data_dir,
         n_classes=n_classes,
         batch_size=cfg.train.batch_size * 2,
-        image_size=cfg.image_size,
+        image_width=cfg.image_width,
+        image_height=cfg.image_height,
     )
     return train_gen, val_gen
 
@@ -279,17 +298,23 @@ def get_kfold_dataset(cfg):
     kf = StratifiedKFold(n_splits=cfg.train.k_fold, shuffle=True)
     for train_idx, val_idx in kf.split(df.image_id, df.label):
         train_df = df.iloc[train_idx]
-        train_gen = TrainDatasetGenerator(train_df.image_id.to_numpy(),
-                                          train_df.label.to_numpy(),
-                                          n_classes=cfg.n_classes,
-                                          batch_size=cfg.train.batch_size,
-                                          image_size=cfg.image_size)
+        train_gen = TrainDatasetGenerator(
+            train_df.image_id.to_numpy(),
+            train_df.label.to_numpy(),
+            n_classes=cfg.n_classes,
+            batch_size=cfg.train.batch_size,
+            image_width=cfg.image_width,
+            image_height=cfg.image_height,
+        )
         val_df = df.iloc[val_idx]
-        val_gen = TestDatasetGenerator(val_df.image_id.to_numpy(),
-                                       val_df.label.to_numpy(),
-                                       n_classes=cfg.n_classes,
-                                       batch_size=cfg.train.batch_size * 2,
-                                       image_size=cfg.image_size)
+        val_gen = TestDatasetGenerator(
+            val_df.image_id.to_numpy(),
+            val_df.label.to_numpy(),
+            n_classes=cfg.n_classes,
+            batch_size=cfg.train.batch_size * 2,
+            image_width=cfg.image_width,
+            image_height=cfg.image_height,
+        )
         yield train_gen, val_gen
 
 

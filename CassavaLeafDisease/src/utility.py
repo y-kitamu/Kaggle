@@ -1,5 +1,11 @@
+import os
+import pdb
+import traceback
+import sys
+
 import tensorflow as tf
-import pdb, traceback, sys
+
+from src.constant import CONFIG_ROOT
 
 
 def run_debug(func):
@@ -34,3 +40,12 @@ def set_gpu(gpu_id=0):
             visible_device_list=str(gpu_id),  # specify GPU number
             allow_growth=True))
         set_session(tf.Session(config=config))
+
+
+def get_config_instance(config_name="config.yaml", config_dir=str(CONFIG_ROOT)):
+    # import here because of avoiding error when submit in kaggle
+    from hydra.experimental import initialize, compose
+    relpath = os.path.relpath(config_dir, os.path.dirname(__file__))
+    with initialize(config_path=relpath):
+        cfg = compose(config_name)
+    return cfg

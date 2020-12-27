@@ -3,8 +3,6 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-# def show_random_selected_images(random_state=None):
-
 
 def plot_batch_images(images, labels=None, cols=10):
     rows = math.ceil(images.shape[0] / 10)

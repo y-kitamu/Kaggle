@@ -18,7 +18,7 @@ def conv2d_bn_activation(x, output_filters, kernel_size=(2, 2), strides=(2, 2), 
 
 
 def efficientnetb0(cfg, weight_decay=0.0, dropout_rate=0.2):
-    input_shape = (cfg.image_size, cfg.image_size, cfg.n_channel)
+    input_shape = (cfg.image_height, cfg.image_width, cfg.n_channel)
     inputs = Input(shape=input_shape)
     efn = tf.keras.applications.EfficientNetB0(include_top=False,
                                                weights=None,

@@ -14,10 +14,10 @@ from sklearn.metrics import classification_report
 
 from src.model import get_model
 from src.dataset import get_kfold_dataset, get_train_val_dataset
-from src.solver import Solver
-from src.lr_scheduler import manual_lr_scheduler
-from src.callbacks import ProgressLogger
-from src.utility import set_gpu
+from src.train.solver import Solver
+from src.train.lr_scheduler import manual_lr_scheduler
+from src.train.callbacks import ProgressLogger
+from src.utility import set_gpu, get_config_instance
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
 from src.predict import predict, get_and_load_model
 
@@ -101,8 +101,7 @@ def log_to_mlflow(cfg, accuracy, metrics):
     log_artifacts(cfg)
 
 
-def prepare_callbacks(cfg, fold_idx):
-    output_dir = OUTPUT_ROOT / cfg.title
+def prepare_callbacks(cfg, output_dir, fold_idx):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -144,7 +143,7 @@ def prepare_callbacks(cfg, fold_idx):
     return callback_list
 
 
-def setup(cfg, fold_idx=0):
+def setup(cfg, output_dir, fold_idx=0):
     set_gpu(cfg.gpu)
     model = get_model(cfg)
     optimizer = get_optimizer(cfg)
@@ -152,7 +151,7 @@ def setup(cfg, fold_idx=0):
 
     model.compile(optimizer=optimizer, loss=loss, metrics=["accuracy"])
     # model.summary()
-    callback_list = prepare_callbacks(cfg, fold_idx)
+    callback_list = prepare_callbacks(cfg, output_dir, fold_idx)
     return model, optimizer, loss, callback_list
 
 
@@ -169,16 +168,19 @@ def train(cfg):
     preds = []
     trues = []
     kf = get_kfold_dataset(cfg)
+    output_dir = OUTPUT_ROOT / cfg.title
     for idx, (train_ds, val_ds) in enumerate(kf):
         log.info("==================== Fold : {} / {} ====================".format(
             idx + 1, cfg.train.k_fold))
-        model, _, _, callback_list = setup(cfg, idx)
+        model, _, _, callback_list = setup(cfg, output_dir, idx)
         start_epoch = restart_at(cfg, model, idx)
 
         log.info("Train data num : {}".format(train_ds.samples))
         log.info("Validation data num : {}".format(val_ds.samples))
-        log.info("batch_size : {}".format(cfg.train.batch_size))
-        log.info("start epoch / total epoch : {} / {}".format(start_epoch, cfg.train.epochs))
+        log.info("Image size (width x height) : ({} x {})".format(train_ds.image_width,
+                                                                  train_ds.image_height))
+        log.info("Batch_size : {}".format(cfg.train.batch_size))
+        log.info("Start epoch / Total epoch : {} / {}".format(start_epoch, cfg.train.epochs))
 
         model.fit(train_ds,
                   epochs=cfg.train.epochs,
@@ -188,9 +190,11 @@ def train(cfg):
                   validation_steps=math.ceil(val_ds.samples / val_batch_size),
                   callbacks=callback_list)
 
-        log.info("start evaluation")
-        models = get_and_load_model(
-            cfg, ["best_val_acc{}.hdf5".format(idx), "best_val_loss{}.hdf5".format(idx)])
+        log.info("Start evaluation")
+        models = [
+            get_and_load_model(cfg, os.path.join(output_dir, model_name.format(idx)))
+            for model_name in ["best_val_acc{}.hdf5", "best_val_loss{}.hdf5"]
+        ]
         pred, true = predict(val_ds, models, cfg.n_classes)
         preds.append(pred)
         trues.append(true)
@@ -222,15 +226,6 @@ def solve_kfold(cfg):
     kf = get_kfold_dataset(cfg)
     for idx, (train_gen, val_gen) in enumerate(kf):
         solve(cfg, train_gen, val_gen, idx)
-
-
-def get_config_instance(config_name="config.yaml", config_dir=str(CONFIG_ROOT)):
-    # import here because to avoid error when submit in kaggle
-    from hydra.experimental import initialize, compose
-    relpath = os.path.relpath(config_dir, os.path.dirname(__file__))
-    with initialize(config_path=relpath):
-        cfg = compose(config_name)
-    return cfg
 
 
 if __name__ == "__main__":

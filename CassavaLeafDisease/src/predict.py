@@ -1,12 +1,9 @@
 import os
 import csv
 import logging
-import glob
 
 import numpy as np
 
-from src.constant import OUTPUT_ROOT
-from src.dataset import get_test_dataset
 from src.model import get_model
 from src.utility import set_gpu
 
@@ -15,7 +12,7 @@ log = logging.getLogger(__name__)
 
 def get_and_load_model(cfg, model_weights):
     if not os.path.exists(model_weights):
-        log.warn("Model weights does not exist. Skip loading : {}".format(model_weights))
+        log.warning("Model weights does not exist. Skip loading : {}".format(model_weights))
         return None
     model = get_model(cfg)
     model.load_weights(model_weights)

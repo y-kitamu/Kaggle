@@ -85,6 +85,7 @@ class Solver(object):
     def train(self):
         """customized training function (alternative to model.fit())
         """
+        logs = None
         self.model.compile(self.optimizer, self.loss_func, metrics=["accuracy"])
         self._reset_state_of_metrix_containers()
 

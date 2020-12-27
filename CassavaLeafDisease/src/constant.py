@@ -12,7 +12,8 @@ if os.path.exists("/content"):
 
 N_CLASSES = 5
 BATCH_SIZE = 32
-IMAGE_SIZE = 256
+IMAGE_WIDTH = 800
+IMAGE_HEIGHT = 600
 
 TRAIN_CSV = DATA_ROOT / "train.csv"
 TRAIN_DATA_DIR = DATA_ROOT / "train_images"
@@ -62,6 +63,7 @@ class Params:
     title: str
     gpu: int = 0
     n_classes: int = 5
-    image_size: int = 256
+    image_width: int = 800
+    image_height: int = 600
     n_channel: int = 3
     train: TrainParams = TrainParams()
