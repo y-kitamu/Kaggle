@@ -1,0 +1,18 @@
+#!/bin/bash
+# check if commit message has valid prefix.
+prefixes=("chore:" "contest:" "practice:" "docs:" "fix:" "refactor:")
+prefix=$(grep -m 1 -oP '^.*?:' "$1")
+for pref in "${prefixes[@]}"
+do
+    if [ "$pref" = "$prefix" ]; then
+        exit 0
+    fi
+done
+
+echo >&2 "Invalid prefix is used: ${prefix}"
+echo >&2 "Valid prefix is below"
+for pref in "${prefixes[@]}"
+do
+    echo >&2 "    ${pref}"
+done
+exit 1
