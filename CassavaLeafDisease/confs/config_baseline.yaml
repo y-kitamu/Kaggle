@@ -1,18 +1,18 @@
 title: "baseline"
 gpu: 0
 n_classes: 5
-image_width: 512
-image_height: 512
+image_width: 256
+image_height: 256
 n_channel: 3
 train:
   k_fold: 5
   epochs: 31
-  batch_size: 8
+  batch_size: 32
   initial_lr: 0.001
   model:
     class_name: efficientnetb0
     config:
-      dropout_rate: 0.2
+      dropout_rate: 0.1
   optimizer:
     class_name: Adam
     config:
@@ -27,7 +27,7 @@ train:
     config:
       warmup_epoch: 1
       # warmup_epoch: 5
-      annealing_epoch: 30
+      annealing_epoch: 15
       annealing_scale: 0.1
-      num_annealing_step: 5
+      num_annealing_step: 3
 # transfer_model: results/baseline/epoch_0.hdf5
