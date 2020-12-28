@@ -24,6 +24,11 @@ def get_base_model(cfg, inputs):
                                                      weights=None,
                                                      input_tensor=inputs,
                                                      pooling=None)
+    if cfg.train.model.class_name == "efficientnetb4":
+        model = tf.keras.applications.EfficientNetB4(include_top=False,
+                                                     weights=None,
+                                                     input_tensor=inputs,
+                                                     pooling=None)
     return model
 
 
