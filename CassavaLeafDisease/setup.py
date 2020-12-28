@@ -18,4 +18,5 @@ setup(
     version=VERSION,
     install_requires=load_requirements("requirements.txt"),
     packages=find_packages(),
+    package_data={"src": ["confs/*.yaml"]},
 )

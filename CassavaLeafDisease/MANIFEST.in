@@ -1,1 +1,1 @@
-recursive-include confs *.yaml
+recursive-include src/confs *.yaml

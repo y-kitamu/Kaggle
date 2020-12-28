@@ -19,7 +19,7 @@ TRAIN_CSV = DATA_ROOT / "train.csv"
 TRAIN_DATA_DIR = DATA_ROOT / "train_images"
 TEST_DATA_DIR = DATA_ROOT / "test_images"
 
-CONFIG_ROOT = (Path(__file__).parents[1] / "confs").resolve()
+CONFIG_ROOT = (Path(__file__).parents[0] / "confs").resolve()
 OUTPUT_ROOT = (Path(__file__).parents[1] / "results").resolve()
 # for kaggle notebook
 if os.path.exists("/kaggle/input"):
