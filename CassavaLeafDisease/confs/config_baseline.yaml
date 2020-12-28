@@ -1,18 +1,18 @@
 title: "baseline"
 gpu: 0
 n_classes: 5
-image_width: 256
-image_height: 256
+image_width: 512
+image_height: 512
 n_channel: 3
 train:
   k_fold: 5
   epochs: 31
-  batch_size: 32
+  batch_size: 8
   initial_lr: 0.001
   model:
     class_name: efficientnetb0
     config:
-      dropout_rate: 0.1
+      dropout_rate: 0.0
   optimizer:
     class_name: Adam
     config:
