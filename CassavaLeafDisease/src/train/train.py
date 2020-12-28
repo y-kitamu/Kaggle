@@ -17,7 +17,7 @@ from src.dataset import get_kfold_dataset, get_train_val_dataset
 from src.train.solver import Solver
 from src.train.lr_scheduler import manual_lr_scheduler
 from src.train.callbacks import ProgressLogger
-from src.utility import set_gpu, get_config_instance
+from src.utility import set_gpu, load_config
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
 from src.predict import predict, get_and_load_model
 
@@ -195,6 +195,7 @@ def train(cfg):
             get_and_load_model(cfg, os.path.join(output_dir, model_name.format(idx)))
             for model_name in ["best_val_acc{}.hdf5", "best_val_loss{}.hdf5"]
         ]
+        val_ds.repeat(False)
         pred, true = predict(val_ds, models, cfg.n_classes)
         preds.append(pred)
         trues.append(true)
@@ -234,5 +235,5 @@ if __name__ == "__main__":
     parser.add_argument("--configdir", "-d", default=CONFIG_ROOT)
     args = parser.parse_args()
 
-    cfg = get_config_instance(args.configname, args.configdir)
+    cfg = load_config(args.configname, args.configdir)
     train(cfg)

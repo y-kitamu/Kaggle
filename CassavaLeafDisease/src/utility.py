@@ -42,7 +42,7 @@ def set_gpu(gpu_id=0):
         set_session(tf.Session(config=config))
 
 
-def get_config_instance(config_name="config.yaml", config_dir=str(CONFIG_ROOT)):
+def load_config(config_name="config.yaml", config_dir=str(CONFIG_ROOT)):
     # import here because of avoiding error when submit in kaggle
     from hydra.experimental import initialize, compose
     relpath = os.path.relpath(config_dir, os.path.dirname(__file__))

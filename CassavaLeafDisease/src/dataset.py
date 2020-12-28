@@ -239,6 +239,14 @@ class TestDatasetGenerator(BaseDatasetGenerator):
         self._is_train = False
         self.with_label = self.labels is not None and with_label
 
+    def repeat(self, is_repeat):
+        self.process_pool = Pool(processes=4)
+        self.queue = Queue(maxsize=4)
+        if is_repeat:
+            self._get_files_and_labels_generator = self._repeat_generator
+        else:
+            self._get_files_and_labels_generator = self._generator
+
     def _repeat_generator(self):
         while True:
             for img, label in self._generator():

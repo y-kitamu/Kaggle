@@ -39,7 +39,6 @@ def predict_for_submission(cfg,
     models = [get_and_load_model(cfg, os.path.join(model_dir, basename)) for basename in model_weights]
     models = [model for model in models if model is not None]
 
-    dataset.with_label = False
     scores, _ = predict(dataset, models, cfg.n_classes)
     preds = scores.argmax(axis=1)
 
@@ -70,6 +69,7 @@ def predict(dataset, models, n_classes=5):
     if not isinstance(models, (list, tuple)):
         models = [models]
 
+    dataset.with_label = False
     preds = np.zeros((len(dataset), n_classes))
     start = 0
     for idx, imgs in enumerate(dataset):
