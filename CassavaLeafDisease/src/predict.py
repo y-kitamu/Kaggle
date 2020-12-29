@@ -72,10 +72,12 @@ def predict(dataset, models, n_classes=5):
     dataset.with_label = False
     preds = np.zeros((len(dataset), n_classes))
     start = 0
-    for idx, imgs in enumerate(dataset):
-        print("\r {} / {}    ".format(idx * dataset.batch_size, dataset.samples), end="")
-        end = start + imgs.shape[0]
-        preds[start:end] = sum([model(imgs, training=False) for model in models])
-        start = end
+    for idx, model in enumerate(models):
+        for idx, imgs in enumerate(dataset):
+            print("\r {} / {}    ".format(idx * dataset.batch_size, dataset.samples), end="")
+            end = start + imgs.shape[0]
+            preds[start:end] += model(imgs, training=False)
+            start = end
+        print("\nFinish {} / {}".format(idx, len(models)))
     preds /= len(models)
     return preds, dataset.labels

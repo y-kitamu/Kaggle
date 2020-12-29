@@ -163,7 +163,7 @@ def train(cfg):
     log.info("=" * len(title))
 
     train_batch_size = cfg.train.batch_size
-    val_batch_size = train_batch_size * 2
+    val_batch_size = cfg.train.val_batch_size
 
     preds = []
     trues = []
@@ -197,12 +197,13 @@ def train(cfg):
         ]
         val_ds.repeat(False)
         pred, true = predict(val_ds, models, cfg.n_classes)
+        print("\n{}".format(classification_report(true.argmax(axis=1), pred.argmax(axis=1))))
         preds.append(pred)
         trues.append(true)
 
     preds = np.concatenate(preds, axis=0).argmax(axis=1)
     trues = np.concatenate(trues, axis=0).argmax(axis=1)
-    log.info("\n{}".format(classification_report(trues, preds)))
+    print("\n{}".format(classification_report(trues, preds)))
     # metrics = classification_report(trues, preds, output_dict=True)
     # accuracy = (preds == trues).sum() / preds.shape[0]
     # log_to_mlflow(cfg, accuracy, metrics)

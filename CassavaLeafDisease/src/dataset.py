@@ -79,10 +79,10 @@ def preprocess(filename, image_width, image_height, is_train):
     Then, augmentation is applied to the image.
 
     Args:
-        filename (str)   : image filename to be loaded.
-        image_width (int) : output image width
+        filename (str)     : image filename to be loaded.
+        image_width (int)  : output image width
         image_height (int) : output image height
-        is_train (bool)  : If True, augmentation is applied to the image,
+        is_train (bool)    : If True, augmentation is applied to the image,
             else no augmentation is applied.
     Return:
         np.ndarray : image data array of shape [image_width, image_height, channel]
@@ -342,7 +342,7 @@ def get_kfold_dataset(cfg):
             val_df.image_id.to_numpy(),
             val_df.label.to_numpy(),
             n_classes=cfg.n_classes,
-            batch_size=cfg.train.batch_size * 2,
+            batch_size=cfg.train.val_batch_size,
             repeat=True,
             image_width=cfg.image_width,
             image_height=cfg.image_height,
