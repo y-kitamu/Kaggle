@@ -8,6 +8,7 @@ train:
   k_fold: 5
   epochs: 31
   batch_size: 8
+  val_batch_size: 16
   initial_lr: 0.001
   model:
     class_name: efficientnetb0
