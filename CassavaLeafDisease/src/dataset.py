@@ -110,7 +110,7 @@ def preprocess(filename, image_width, image_height, is_train):
     image = cv2.warpAffine(image, affine_mat, (image_width, image_height))
     # print(affine_mat)
     if is_train:
-        image = image.astype(np.int32) + np.random.randint(-10, 10, size=image.shape)
+        image = image.astype(np.int32) + np.random.randint(-15, 15, size=image.shape)
         image = np.clip(image, 0, 255)
     return image.astype(np.float32)
 
@@ -161,7 +161,7 @@ class BaseDatasetGenerator:
                  image_width=IMAGE_WIDTH,
                  image_height=IMAGE_HEIGHT,
                  batch_size=BATCH_SIZE,
-                 n_prefetch=4):
+                 n_prefetch=8):
         self.filenames = filenames
         self.labels = dense_to_onehot(labels, n_classes)
         if self.labels is not None:
@@ -171,12 +171,12 @@ class BaseDatasetGenerator:
         self.image_width = image_width
         self.image_height = image_height
         self.batch_size = batch_size
-        self.samples = len(self.filenames)
         self._is_train = None
+        self.n_prefetch = n_prefetch
 
-        # for prefetch
-        self.process_pool = Pool(processes=n_prefetch)
-        self.queue = Queue(maxsize=n_prefetch)
+    def reset_queues(self):
+        self.process_pool = Pool(processes=self.n_prefetch)
+        self.queue = Queue(maxsize=self.n_prefetch)
         self.files_and_labels_gen = self._get_files_and_labels_generator()
 
     @property
@@ -191,8 +191,7 @@ class BaseDatasetGenerator:
         return len(self.filenames)
 
     def __iter__(self):
-        while not self.queue.empty():
-            self.queue.get()
+        self.reset_queues()
         self.files_and_labels_gen = self._get_files_and_labels_generator()
         return self
 
@@ -201,6 +200,8 @@ class BaseDatasetGenerator:
             self.process_pool.terminate()
 
     def __next__(self):
+        if not hasattr(self, "queue"):
+            self.reset_queues()
         self._prefetch()
         if self.queue.empty():
             self.files_and_labels_gen = self._get_files_and_labels_generator()
@@ -229,15 +230,36 @@ class TrainDatasetGenerator(BaseDatasetGenerator):
     """
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, oversample_rate=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._is_train = True
+        self.oversample(np.array(oversample_rate))
+
+    def oversample(self, rates=None):
+        """Oversample dataset
+        Args:
+            rates (np.ndarray) : oversampling rate. normalized by minimum value.
+        """
+        if rates is None:
+            return
+            # rates = [(labels == idx).sum() for idx in len(self.labels[0])]
+        labels = self.labels.argmax(axis=1)
+        rates = (rates / rates.min()).astype(np.int)
+        new_filenames = []
+        new_labels = []
+        for idx, rate in enumerate(rates):
+            indices = np.where(labels == idx)
+            new_filenames += [self.filenames[indices]] * rate
+            new_labels += [self.labels[indices]] * rate
+        self.filenames = np.concatenate(new_filenames, axis=0)
+        self.labels = np.concatenate(new_labels, axis=0)
 
     def _get_files_and_labels_generator(self):
-        steps_per_epoch = math.ceil(self.samples / self.batch_size)
+        num_sample = len(self.filenames)
+        steps_per_epoch = math.ceil(num_sample / self.batch_size)
         while True:
             index_arr = np.arange(steps_per_epoch * self.batch_size, dtype=np.int)
-            index_arr[self.samples:] = np.random.randint(index_arr.shape[0] - self.samples)
+            index_arr[num_sample:] = np.random.randint(index_arr.shape[0] - num_sample)
             shuffled = np.random.permutation(index_arr)
             for i in range(steps_per_epoch):
                 start = i * self.batch_size
@@ -272,7 +294,7 @@ class TestDatasetGenerator(BaseDatasetGenerator):
                 yield img, label
 
     def _generator(self):
-        steps_per_epoch = math.ceil(self.samples / self.batch_size)
+        steps_per_epoch = math.ceil(len(self.filenames) / self.batch_size)
         for i in range(steps_per_epoch):
             start = i * self.batch_size
             end = min(start + self.batch_size, len(self.filenames))
@@ -313,7 +335,11 @@ def get_train_val_dataset(cfg,
         )
         return gen, None
 
-    train_df, val_df = train_test_split(df, test_size=test_ratio, stratify=df.label)
+    train_df, val_df = train_test_split(df,
+                                        test_size=test_ratio,
+                                        stratify=df.label,
+                                        random_state=cfg.random_state)
+    oversample_rate = None if not hasattr(cfg.train, "oversample_rate") else cfg.train.oversample_rate
     train_gen = TrainDatasetGenerator(
         train_df.image_id.to_numpy(),
         train_df.label.to_numpy().astype(np.int),
@@ -322,6 +348,7 @@ def get_train_val_dataset(cfg,
         batch_size=cfg.train.batch_size,
         image_width=cfg.image_width,
         image_height=cfg.image_height,
+        oversample_rate=oversample_rate,
     )
 
     val_gen = TestDatasetGenerator(
@@ -345,7 +372,8 @@ def get_kfold_dataset(cfg):
             (BaseDatasetGenerator, BaseDatasetGenerator) for `cfg.train.k_fold` times.
     """
     df = pd.read_csv(TRAIN_CSV)
-    kf = StratifiedKFold(n_splits=cfg.train.k_fold, shuffle=True)
+    kf = StratifiedKFold(n_splits=cfg.train.k_fold, shuffle=True, random_state=cfg.random_state)
+    oversample_rate = None if not hasattr(cfg.train, "oversample_rate") else cfg.train.oversample_rate
     for train_idx, val_idx in kf.split(df.image_id, df.label):
         train_df = df.iloc[train_idx]
         train_gen = TrainDatasetGenerator(
@@ -355,6 +383,7 @@ def get_kfold_dataset(cfg):
             batch_size=cfg.train.batch_size,
             image_width=cfg.image_width,
             image_height=cfg.image_height,
+            oversample_rate=oversample_rate,
         )
         val_df = df.iloc[val_idx]
         val_gen = TestDatasetGenerator(

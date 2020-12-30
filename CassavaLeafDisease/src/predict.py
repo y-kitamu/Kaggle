@@ -64,7 +64,7 @@ def predict(dataset, models, n_classes=5):
         np.ndarray : 2D array of predictions ([Num Samples, Num Classes])
     """
     log.info("Start prediction")
-    log.info("Evaluate data num : {}".format(dataset.samples))
+    log.info("Evaluate data num : {}".format(len(dataset)))
     log.info("Batch size        : {}".format(dataset.batch_size))
     if not isinstance(models, (list, tuple)):
         models = [models]
@@ -75,7 +75,7 @@ def predict(dataset, models, n_classes=5):
     for model_idx, model in enumerate(models):
         start = 0
         for idx, imgs in enumerate(dataset):
-            print("\r {} / {}    ".format(idx * dataset.batch_size, dataset.samples), end="")
+            print("\r {} / {}    ".format(idx * dataset.batch_size, len(dataset)), end="")
             end = start + imgs.shape[0]
             preds[start:end] += model(imgs, training=False)
             start = end

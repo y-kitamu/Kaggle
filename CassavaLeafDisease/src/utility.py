@@ -2,6 +2,7 @@ import os
 import pdb
 import traceback
 import sys
+import multiprocessing
 
 import tensorflow as tf
 
@@ -49,3 +50,14 @@ def load_config(config_name="config.yaml", config_dir=str(CONFIG_ROOT)):
     with initialize(config_path=relpath):
         cfg = compose(config_name)
     return cfg
+
+
+def run_as_multiprocess(func):
+
+    def run(*args, **kwargs):
+        p = multiprocessing.Process(target=func, args=args, kwargs=kwargs)
+        # p = threading.Thread(target=func, args=args, kwargs=kwargs)
+        p.start()
+        p.join()
+
+    return run

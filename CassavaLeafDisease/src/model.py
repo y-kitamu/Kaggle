@@ -50,6 +50,8 @@ def get_head_output(cfg, inputs, weight_decay=0.0, dropout_rate=0.0, **kwargs):
                              kernel_size=(1, 1),
                              strides=(1, 1),
                              weight_decay=weight_decay)
+    if dropout_rate > 1e-5:
+        x = Dropout(rate=dropout_rate)(x)
     x = Convolution2D(filters=cfg.n_classes,
                       kernel_size=(3, 3),
                       strides=(1, 1),

@@ -17,7 +17,7 @@ from src.dataset import get_kfold_dataset, get_train_val_dataset
 from src.train.solver import Solver
 from src.train.lr_scheduler import manual_lr_scheduler
 from src.train.callbacks import ProgressLogger, LRScheduler
-from src.utility import set_gpu, load_config
+from src.utility import set_gpu, load_config, run_as_multiprocess
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
 from src.predict import predict, get_and_load_model
 
@@ -113,8 +113,11 @@ def prepare_callbacks(cfg, output_dir, fold_idx):
         callbacks.CSVLogger(os.path.join(output_dir, "./train_log{}.csv".format(fold_idx))))
     # callback_list.append(callbacks.LearningRateScheduler(get_lr_scheduler(cfg)))
     callback_list.append(LRScheduler())
-    callback_list.append(
-        callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True))
+    if hasattr(cfg.train, "earlystop_patience"):
+        callback_list.append(
+            callbacks.EarlyStopping(monitor="val_loss",
+                                    patience=cfg.train.earlystop_patience,
+                                    restore_best_weights=True))
     callback_list.append(
         callbacks.ModelCheckpoint(os.path.join(output_dir, "best_val_acc{}.hdf5".format(fold_idx)),
                                   save_weights_only=True,
@@ -162,6 +165,7 @@ def setup(cfg, output_dir, fold_idx=0):
     return model, optimizer, loss, callback_list
 
 
+@run_as_multiprocess
 def train_impl(cfg, train_ds, val_ds, output_dir, idx):
     model, _, _, callback_list = setup(cfg, output_dir, idx)
     start_epoch = restart_at(cfg, model, idx)
@@ -173,9 +177,9 @@ def train_impl(cfg, train_ds, val_ds, output_dir, idx):
     model.fit(train_ds,
               epochs=cfg.train.epochs,
               initial_epoch=start_epoch,
-              steps_per_epoch=math.ceil(train_ds.samples / cfg.train.batch_size),
+              steps_per_epoch=math.ceil(len(train_ds) / cfg.train.batch_size),
               validation_data=val_ds,
-              validation_steps=math.ceil(val_ds.samples / cfg.train.val_batch_size),
+              validation_steps=math.ceil(len(val_ds) / cfg.train.val_batch_size),
               callbacks=callback_list)
 
 
@@ -193,8 +197,8 @@ def train(cfg):
     for idx, (train_ds, val_ds) in enumerate(kf):
         log.info("==================== Fold : {} / {} ====================".format(
             idx + 1, cfg.train.k_fold))
-        log.info("Train data num : {}".format(train_ds.samples))
-        log.info("Validation data num : {}".format(val_ds.samples))
+        log.info("Train data num : {}".format(len(train_ds)))
+        log.info("Validation data num : {}".format(len(val_ds)))
         log.info("Image size (width x height) : ({} x {})".format(train_ds.image_width,
                                                                   train_ds.image_height))
         log.info("Batch_size : {}".format(cfg.train.batch_size))
@@ -203,13 +207,12 @@ def train(cfg):
             log.info("========== Start transfer learning ==========")
         train_impl(cfg, train_ds, val_ds, output_dir, idx)
 
-        if hasattr(cfg.train.model, "is_finetune") and cfg.train.model.is_finetune:
+        if cfg.train.model.is_freeze and hasattr(cfg.train.model,
+                                                 "is_finetune") and cfg.train.model.is_finetune:
             log.info("========== Start fine tuning ==========")
-            cfg.train.epochs += cfg.train.epochs
-            cfg.train.optimizer.config.learning_rate *= 0.1
-            if hasattr(cfg.train.model, "is_freeze"):
-                cfg.train.model.is_freeze = False
+            cfg.train.model.is_freeze = False
             train_impl(cfg, train_ds, val_ds, output_dir, idx)
+            cfg.train.model.is_freeze = True
 
         log.info("========== Start evaluation ==========")
         models = [
@@ -221,7 +224,6 @@ def train(cfg):
         print("\n{}".format(classification_report(true.argmax(axis=1), pred.argmax(axis=1))))
         preds.append(pred)
         trues.append(true)
-        del models
 
     preds = np.concatenate(preds, axis=0).argmax(axis=1)
     trues = np.concatenate(trues, axis=0).argmax(axis=1)

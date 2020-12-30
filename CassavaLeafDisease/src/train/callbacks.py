@@ -1,6 +1,7 @@
 import time
 
 from tensorflow.keras.callbacks import Callback, ReduceLROnPlateau
+from tensorflow.python.keras import backend as K
 
 
 class ProgressLogger(Callback):
@@ -41,7 +42,7 @@ class LRScheduler(ReduceLROnPlateau):
     def __init__(self,
                  monitor='val_loss',
                  factor=0.33,
-                 patience=3,
+                 patience=2,
                  verbose=1,
                  mode='auto',
                  min_delta=1e-4,
@@ -49,13 +50,28 @@ class LRScheduler(ReduceLROnPlateau):
                  min_lr=1e-6,
                  warmup=1,
                  **kwargs):
-        super().__init__(monitor, factor, patience, verbose, mode, min_delta, cooldown, min_lr, **kwargs)
+        super().__init__(monitor=monitor,
+                         factor=factor,
+                         patience=patience,
+                         verbose=verbose,
+                         mode=mode,
+                         min_delta=min_delta,
+                         cooldown=cooldown,
+                         min_lr=min_lr,
+                         **kwargs)
         self.warmup = warmup
 
+    def set_model(self, *args, **kwargs):
+        super().set_model(*args, **kwargs)
+        self.default_lr = float(K.get_value(self.model.optimizer.lr))
+
     def on_epoch_end(self, epoch, logs=None):
+        super().on_epoch_end(epoch, logs)
         if epoch < self.warmup:
-            logs = logs or {}
+            print("\n warmup lr : {}".format(self.min_lr))
+            K.set_value(self.model.optimizer.lr, self.min_lr)
             logs["lr"] = self.min_lr
-            self.model.optimizer.lr = self.min_lr
-        else:
-            super().on_epoch_end(epoch, logs)
+        if epoch == self.warmup:
+            print("\n finish warmup : {}".format(self.default_lr))
+            K.set_value(self.model.optimizer.lr, self.default_lr)
+            logs["lr"] = self.default_lr
