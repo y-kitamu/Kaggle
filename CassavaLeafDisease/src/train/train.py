@@ -151,7 +151,10 @@ def prepare_callbacks(cfg, output_dir, fold_idx):
 
 
 def setup(cfg, output_dir, fold_idx=0):
-    set_gpu(cfg.gpu)
+    try:
+        set_gpu(cfg.gpu)
+    except:
+        log.error("Failed to set gpu. Ignoring.")
     model = get_model(cfg)
     if hasattr(cfg.train, "transfer_model"):
         log.info("Load weights from {}".format(cfg.train.transfer_model))
@@ -183,6 +186,17 @@ def train_impl(cfg, train_ds, val_ds, output_dir, idx):
               callbacks=callback_list)
 
 
+# @run_as_multiprocess
+def eval_impl(cfg, val_ds, output_dir, idx):
+    models = [
+        get_and_load_model(cfg, os.path.join(output_dir, model_name.format(idx)))
+        for model_name in ["best_val_acc{}.hdf5", "best_val_loss{}.hdf5"]
+    ]
+    val_ds.repeat(False)
+    pred, true = predict(val_ds, models, cfg.n_classes)
+    return pred, true
+
+
 def train(cfg):
     title = "============================== Start Train : {} ==============================".format(
         cfg.title)
@@ -205,6 +219,8 @@ def train(cfg):
 
         if cfg.train.model.is_freeze:
             log.info("========== Start transfer learning ==========")
+        elif cfg.train.model.is_finetune:
+            log.info("========== Start fine tuning ==========")
         train_impl(cfg, train_ds, val_ds, output_dir, idx)
 
         if cfg.train.model.is_freeze and hasattr(cfg.train.model,
@@ -215,12 +231,7 @@ def train(cfg):
             cfg.train.model.is_freeze = True
 
         log.info("========== Start evaluation ==========")
-        models = [
-            get_and_load_model(cfg, os.path.join(output_dir, model_name.format(idx)))
-            for model_name in ["best_val_acc{}.hdf5", "best_val_loss{}.hdf5"]
-        ]
-        val_ds.repeat(False)
-        pred, true = predict(val_ds, models, cfg.n_classes)
+        pred, true = eval_impl(cfg, val_ds, output_dir, idx)
         print("\n{}".format(classification_report(true.argmax(axis=1), pred.argmax(axis=1))))
         preds.append(pred)
         trues.append(true)

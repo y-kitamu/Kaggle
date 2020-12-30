@@ -16,7 +16,7 @@ def plot_batch_images(images, labels=None, cols=10):
         labels (np.ndarray) : True labels
         cols (int)          : number of images to be plotted in one line
     """
-    rows = max(2, math.ceil(images.shape[0] / 10))
+    rows = max(2, math.ceil(images.shape[0] / cols))
     fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=(cols * 5, rows * 5))
 
     if images.dtype == np.float64 or images.dtype == np.float32:

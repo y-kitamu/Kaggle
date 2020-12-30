@@ -64,14 +64,16 @@ class LRScheduler(ReduceLROnPlateau):
     def set_model(self, *args, **kwargs):
         super().set_model(*args, **kwargs)
         self.default_lr = float(K.get_value(self.model.optimizer.lr))
+        # print("set warmup lr : {}".format(self.min_lr))
+        # K.set_value(self.model.optimizer.lr, self.min_lr)
 
-    def on_epoch_end(self, epoch, logs=None):
-        super().on_epoch_end(epoch, logs)
-        if epoch < self.warmup:
-            print("\n warmup lr : {}".format(self.min_lr))
-            K.set_value(self.model.optimizer.lr, self.min_lr)
-            logs["lr"] = self.min_lr
-        if epoch == self.warmup:
-            print("\n finish warmup : {}".format(self.default_lr))
-            K.set_value(self.model.optimizer.lr, self.default_lr)
-            logs["lr"] = self.default_lr
+    # def on_epoch_end(self, epoch, logs=None):
+    #     super().on_epoch_end(epoch, logs)
+    #     if epoch < self.warmup:
+    #         print("\n warmup lr : {}".format(self.min_lr))
+    #         K.set_value(self.model.optimizer.lr, self.min_lr)
+    #         logs["lr"] = self.min_lr
+    #     if epoch == self.warmup:
+    #         print("\n finish warmup : {}".format(self.default_lr))
+    #         K.set_value(self.model.optimizer.lr, self.default_lr)
+    #         logs["lr"] = self.default_lr
