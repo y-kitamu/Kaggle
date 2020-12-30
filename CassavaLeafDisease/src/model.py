@@ -21,7 +21,7 @@ def get_base_model(cfg, inputs):
     model = None
     if cfg.train.model.class_name == "efficientnetb0":
         model = tf.keras.applications.EfficientNetB0(include_top=False,
-                                                     weights="imagenet",
+                                                     weights=None,
                                                      input_tensor=inputs,
                                                      pooling=None)
     if cfg.train.model.class_name == "efficientnetb4":

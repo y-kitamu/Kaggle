@@ -63,7 +63,7 @@ class Params:
     title: str
     gpu: int = 0
     n_classes: int = 5
-    image_width: int = 800
-    image_height: int = 600
+    image_width: int = 512
+    image_height: int = 512
     n_channel: int = 3
     train: TrainParams = TrainParams()
