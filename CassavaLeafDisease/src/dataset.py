@@ -351,3 +351,15 @@ def get_kfold_dataset(cfg):
             image_height=cfg.image_height,
         )
         yield train_gen, val_gen
+
+
+def get_test_dataset(test_data_dir=TEST_DATA_DIR):
+    """Get dataset for test.
+    Args:
+        test_data_dir (str) : Path to the directory where input images exist.
+    Return:
+        TestDatasetGenerator : test dataset generator
+    """
+    file_list = [os.path.basename(fname) for fname in glob.glob(os.path.join(test_data_dir, "*"))]
+    test_ds = TestDatasetGenerator(file_list, with_label=False)
+    return test_ds
