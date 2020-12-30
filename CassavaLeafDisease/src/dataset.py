@@ -85,6 +85,31 @@ def augment(affine_mat, image_width, image_height, max_angle=30):
     return affine_mat
 
 
+def random_noise(image, max_noise=15):
+    image = image.astype(np.int32) + np.random.randint(-max_noise, max_noise, size=image.shape)
+    image = np.clip(image, 0, 255)
+    return image
+
+
+def random_erasing(image,
+                   min_mask_area=0.02,
+                   max_mask_area=0.3,
+                   min_aspect_ratio=1.0 / 3,
+                   max_aspect_ratio=3.0):
+    if np.random.rand() > 0.5:
+        return image
+    image_area = image.shape[0] * image.shape[1]
+    mask_area = image_area * (np.random.rand() * (max_mask_area - min_mask_area) + min_mask_area)
+    aspect_ratio = np.random.rand() * (max_aspect_ratio - min_aspect_ratio) + min_aspect_ratio
+    mask_width = min(int((mask_area * aspect_ratio)**0.5), image.shape[1])
+    mask_height = min(int(mask_area / mask_width), image.shape[0])
+
+    offset_x = random.randint(0, image.shape[1] - mask_width)
+    offset_y = random.randint(0, image.shape[0] - mask_height)
+    image[offset_y:offset_y + mask_height, offset_x:offset_x + mask_width] = 0
+    return image
+
+
 def preprocess(filename, image_width, image_height, is_train):
     """Load image and apply augment.
     At first image is scaled from (original width, original height) to (image_width, image_height).
@@ -110,8 +135,8 @@ def preprocess(filename, image_width, image_height, is_train):
     image = cv2.warpAffine(image, affine_mat, (image_width, image_height))
     # print(affine_mat)
     if is_train:
-        image = image.astype(np.int32) + np.random.randint(-15, 15, size=image.shape)
-        image = np.clip(image, 0, 255)
+        image = random_noise(image)
+        image = random_erasing(image)
     return image.astype(np.float32)
 
 
