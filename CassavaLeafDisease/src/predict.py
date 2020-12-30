@@ -70,7 +70,7 @@ def predict(dataset, models, n_classes=5):
         models = [models]
 
     dataset.with_label = False
-    preds = np.zeros((len(dataset), n_classes))
+    preds = np.zeros((len(dataset), n_classes), astype=np.float32)
     start = 0
     for idx, model in enumerate(models):
         for idx, imgs in enumerate(dataset):

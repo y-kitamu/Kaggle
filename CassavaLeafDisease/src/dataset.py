@@ -350,7 +350,7 @@ def get_kfold_dataset(cfg):
         yield train_gen, val_gen
 
 
-def get_test_dataset(test_data_dir="../input/cassava-leaf-disease-classification"):
+def get_test_dataset(test_data_dir="../input/cassava-leaf-disease-classification/test_images"):
     """Get dataset for test.
     Args:
         test_data_dir (str) : Path to the directory where input images exist.
