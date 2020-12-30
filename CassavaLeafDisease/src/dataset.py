@@ -361,5 +361,5 @@ def get_test_dataset(test_data_dir=TEST_DATA_DIR):
         TestDatasetGenerator : test dataset generator
     """
     file_list = [os.path.basename(fname) for fname in glob.glob(os.path.join(test_data_dir, "*"))]
-    test_ds = TestDatasetGenerator(file_list, with_label=False)
+    test_ds = TestDatasetGenerator(file_list, data_dir=test_data_dir, with_label=False)
     return test_ds
