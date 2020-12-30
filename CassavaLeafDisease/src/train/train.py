@@ -16,7 +16,7 @@ from src.model import get_model
 from src.dataset import get_kfold_dataset, get_train_val_dataset
 from src.train.solver import Solver
 from src.train.lr_scheduler import manual_lr_scheduler
-from src.train.callbacks import ProgressLogger
+from src.train.callbacks import ProgressLogger, LRScheduler
 from src.utility import set_gpu, load_config
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
 from src.predict import predict, get_and_load_model
@@ -59,6 +59,7 @@ def restart_at(cfg, model, fold_idx):
         return 0
     weight_path = str(OUTPUT_ROOT / cfg.title / "epoch{}_{:03d}.hdf5".format(fold_idx, max_epoch))
     model.load_weights(weight_path)
+    log.info("Load latest weights : {}".format(weight_path))
     return max_epoch
 
 
@@ -110,7 +111,10 @@ def prepare_callbacks(cfg, output_dir, fold_idx):
     # callback_list.append(ProgressLogger())
     callback_list.append(
         callbacks.CSVLogger(os.path.join(output_dir, "./train_log{}.csv".format(fold_idx))))
-    callback_list.append(callbacks.LearningRateScheduler(get_lr_scheduler(cfg)))
+    # callback_list.append(callbacks.LearningRateScheduler(get_lr_scheduler(cfg)))
+    callback_list.append(LRScheduler())
+    callback_list.append(
+        callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True))
     callback_list.append(
         callbacks.ModelCheckpoint(os.path.join(output_dir, "best_val_acc{}.hdf5".format(fold_idx)),
                                   save_weights_only=True,
@@ -146,6 +150,9 @@ def prepare_callbacks(cfg, output_dir, fold_idx):
 def setup(cfg, output_dir, fold_idx=0):
     set_gpu(cfg.gpu)
     model = get_model(cfg)
+    if hasattr(cfg.train, "transfer_model"):
+        log.info("Load weights from {}".format(cfg.train.transfer_model))
+        model.load_weights(cfg.train.transfer_model, by_name=True)
     optimizer = get_optimizer(cfg)
     loss = get_loss(cfg)
 
@@ -155,15 +162,29 @@ def setup(cfg, output_dir, fold_idx=0):
     return model, optimizer, loss, callback_list
 
 
+def train_impl(cfg, train_ds, val_ds, output_dir, idx):
+    model, _, _, callback_list = setup(cfg, output_dir, idx)
+    start_epoch = restart_at(cfg, model, idx)
+    if start_epoch >= cfg.train.epochs:
+        log.info("Training is already finished.")
+        return
+    log.info("Start epoch / Total epoch : {} / {}".format(start_epoch, cfg.train.epochs))
+
+    model.fit(train_ds,
+              epochs=cfg.train.epochs,
+              initial_epoch=start_epoch,
+              steps_per_epoch=math.ceil(train_ds.samples / cfg.train.batch_size),
+              validation_data=val_ds,
+              validation_steps=math.ceil(val_ds.samples / cfg.train.val_batch_size),
+              callbacks=callback_list)
+
+
 def train(cfg):
     title = "============================== Start Train : {} ==============================".format(
         cfg.title)
     log.info("=" * len(title))
     log.info(title)
     log.info("=" * len(title))
-
-    train_batch_size = cfg.train.batch_size
-    val_batch_size = cfg.train.val_batch_size
 
     preds = []
     trues = []
@@ -172,25 +193,25 @@ def train(cfg):
     for idx, (train_ds, val_ds) in enumerate(kf):
         log.info("==================== Fold : {} / {} ====================".format(
             idx + 1, cfg.train.k_fold))
-        model, _, _, callback_list = setup(cfg, output_dir, idx)
-        start_epoch = restart_at(cfg, model, idx)
-
         log.info("Train data num : {}".format(train_ds.samples))
         log.info("Validation data num : {}".format(val_ds.samples))
         log.info("Image size (width x height) : ({} x {})".format(train_ds.image_width,
                                                                   train_ds.image_height))
         log.info("Batch_size : {}".format(cfg.train.batch_size))
-        log.info("Start epoch / Total epoch : {} / {}".format(start_epoch, cfg.train.epochs))
 
-        model.fit(train_ds,
-                  epochs=cfg.train.epochs,
-                  initial_epoch=start_epoch,
-                  steps_per_epoch=math.ceil(train_ds.samples / train_batch_size),
-                  validation_data=val_ds,
-                  validation_steps=math.ceil(val_ds.samples / val_batch_size),
-                  callbacks=callback_list)
+        if cfg.train.model.is_freeze:
+            log.info("========== Start transfer learning ==========")
+        train_impl(cfg, train_ds, val_ds, output_dir, idx)
 
-        log.info("Start evaluation")
+        if hasattr(cfg.train.model, "is_finetune") and cfg.train.model.is_finetune:
+            log.info("========== Start fine tuning ==========")
+            cfg.train.epochs += cfg.train.epochs
+            cfg.train.optimizer.config.learning_rate *= 0.1
+            if hasattr(cfg.train.model, "is_freeze"):
+                cfg.train.model.is_freeze = False
+            train_impl(cfg, train_ds, val_ds, output_dir, idx)
+
+        log.info("========== Start evaluation ==========")
         models = [
             get_and_load_model(cfg, os.path.join(output_dir, model_name.format(idx)))
             for model_name in ["best_val_acc{}.hdf5", "best_val_loss{}.hdf5"]
@@ -200,6 +221,7 @@ def train(cfg):
         print("\n{}".format(classification_report(true.argmax(axis=1), pred.argmax(axis=1))))
         preds.append(pred)
         trues.append(true)
+        del models
 
     preds = np.concatenate(preds, axis=0).argmax(axis=1)
     trues = np.concatenate(trues, axis=0).argmax(axis=1)

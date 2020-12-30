@@ -37,14 +37,27 @@ def dense_to_onehot(array, n_classes=5):
     raise ValueError("Input array has invalid shape : {}".format(array.shape))
 
 
-def scale(affine_mat, scale_x, scale_y=None):
+def scaling(affine_mat, scale_x, scale_y=None):
     scale_y = scale_y or scale_x
     return np.matmul(np.array([[scale_x, 0], [0, scale_y]]), affine_mat)
 
 
-def random_shift(affine_mat, max_shift_x, max_shift_y):
-    shift_x = np.clip(np.random.normal(loc=0.5, scale=0.16), 0, 1) * max_shift_x
-    shift_y = np.clip(np.random.normal(loc=0.5, scale=0.16), 0, 1) * max_shift_y
+def random_shift(affine_mat, input_size, output_size):
+    """Scale to correct size and random crop
+    Args:
+        affine_mat (np.ndarray)    : affine transformation matrix of shape (2, 3).
+        input_size (tuple of int)  : tuple of input image size:  (input_height, input_width)
+        output_size (tuple of int) : tuple of output image size: (output_height, output_width)
+    """
+    inv_scale = min(int(input_size[0] / output_size[0]), int(input_size[1] / output_size[0]))
+    scale = 1.0 / inv_scale
+    affine_mat = scaling(affine_mat, scale)
+
+    length = min(input_size[0], input_size[1]) * scale
+    max_shift = max((length - max(output_size[0], output_size[1])) * 0.5, 0)
+
+    shift_x = np.clip(np.random.normal(loc=0.0, scale=0.33), -1, 1) * max_shift
+    shift_y = np.clip(np.random.normal(loc=0.0, scale=0.33), -1, 1) * max_shift
     affine_mat[0, 2] -= shift_x
     affine_mat[1, 2] -= shift_y
     return affine_mat
@@ -57,19 +70,18 @@ def rotate(affine_mat, angle, center_x, center_y):
     return affine_mat
 
 
-def horizontal_flip(affine_mat, width):
-    return np.matmul(np.array([[-1, 0], [0, 1]]), affine_mat) + np.array([[0, 0, width], [0, 0, 0]])
+def horizontal_flip(affine_mat):
+    return np.matmul(np.array([[-1, 0], [0, 1]]), affine_mat)
 
 
 def augment(affine_mat, image_width, image_height, max_angle=30):
     # random flip (horizontal)
     if np.random.rand() > 0.5:
-        affine_mat = horizontal_flip(affine_mat, image_width)
+        affine_mat = horizontal_flip(affine_mat)
 
     # random rotate
     angle = 2 * max_angle * np.random.rand() - max_angle
-    rotate(affine_mat, angle, image_width / 2, image_height / 2)
-
+    affine_mat = rotate(affine_mat, angle, 0, 0)
     return affine_mat
 
 
@@ -87,17 +99,19 @@ def preprocess(filename, image_width, image_height, is_train):
     Return:
         np.ndarray : image data array of shape [image_width, image_height, channel]
     """
-    image = cv2.imread(os.path.join(filename)) / 255.0
-    affine_mat = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
+    image = cv2.imread(os.path.join(filename))  # / 255.0
+    affine_mat = np.array([[1, 0, -image.shape[1] / 2], [0, 1, -image.shape[0] / 2]], dtype=np.float32)
     if is_train:
         affine_mat = augment(affine_mat, image.shape[1], image.shape[0])
-    affine_mat = random_shift(affine_mat, max(0, image.shape[1] - image_width),
-                              max(0, image.shape[0] - image_height))
-    image = cv2.warpAffine(image, affine_mat, (image_width, image_height))
 
+    affine_mat = random_shift(affine_mat, image.shape, (image_width, image_height))
+    affine_mat[0, 2] += image_width / 2
+    affine_mat[1, 2] += image_height / 2
+    image = cv2.warpAffine(image, affine_mat, (image_width, image_height))
+    # print(affine_mat)
     if is_train:
-        image += np.random.rand(*image.shape) * 0.1 - 0.05
-        image = np.clip(image, 0.0, 1.0)
+        image = image.astype(np.int32) + np.random.randint(-10, 10, size=image.shape)
+        image = np.clip(image, 0, 255)
     return image.astype(np.float32)
 
 
@@ -204,6 +218,8 @@ class BaseDatasetGenerator:
                     self.process_pool.apply_async(fetch,
                                                   (filenames, labels, self.data_dir, self.image_width,
                                                    self.image_height, self.is_train)))
+                # fetch(filenames, labels, self.data_dir, self.image_width, self.image_height,
+                #       self.is_train))
 
     def _get_files_and_labels_generator(self):
         raise NotImplementedError("Function _get_files_and_labels_generator is not implemented.")

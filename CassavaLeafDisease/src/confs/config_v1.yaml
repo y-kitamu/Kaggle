@@ -1,15 +1,19 @@
 title: "v1"
 gpu: 0
 n_classes: 5
-image_width: 512
-image_height: 512
+image_width: 224
+image_height: 224
 n_channel: 3
 train:
   k_fold: 5
   epochs: 31
   batch_size: 8
+  val_batch_size: 16
   initial_lr: 0.001
+  transfer_model: /home/kitamura/work/Kaggle/weights/efficientnetb0_notop.h5
   model:
+    is_freeze: True
+    is_finetune: True
     class_name: efficientnetb0
     config:
       dropout_rate: 0.0
@@ -30,4 +34,3 @@ train:
       annealing_epoch: 15
       annealing_scale: 0.1
       num_annealing_step: 3
-# transfer_model: results/baseline/epoch_0.hdf5

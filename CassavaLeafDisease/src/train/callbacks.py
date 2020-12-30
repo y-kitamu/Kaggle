@@ -1,6 +1,6 @@
 import time
 
-from tensorflow.keras.callbacks import Callback
+from tensorflow.keras.callbacks import Callback, ReduceLROnPlateau
 
 
 class ProgressLogger(Callback):
@@ -34,3 +34,28 @@ class ProgressLogger(Callback):
 
         elapsed = time.time() - self.start
         print("\r  {}, Elapsed time : {:.3f} sec".format(output, elapsed))
+
+
+class LRScheduler(ReduceLROnPlateau):
+
+    def __init__(self,
+                 monitor='val_loss',
+                 factor=0.33,
+                 patience=3,
+                 verbose=1,
+                 mode='auto',
+                 min_delta=1e-4,
+                 cooldown=0,
+                 min_lr=1e-6,
+                 warmup=1,
+                 **kwargs):
+        super().__init__(monitor, factor, patience, verbose, mode, min_delta, cooldown, min_lr, **kwargs)
+        self.warmup = warmup
+
+    def on_epoch_end(self, epoch, logs=None):
+        if epoch < self.warmup:
+            logs = logs or {}
+            logs["lr"] = self.min_lr
+            self.model.optimizer.lr = self.min_lr
+        else:
+            super().on_epoch_end(epoch, logs)

@@ -1,8 +1,12 @@
+import logging
+
 import tensorflow as tf
 from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import \
     Convolution2D, GlobalAveragePooling2D, BatchNormalization, ReLU, Dropout, Dense
 from tensorflow.keras.regularizers import l2
+
+log = logging.getLogger(__name__)
 
 
 def conv2d_bn_activation(x, output_filters, kernel_size=(2, 2), strides=(2, 2), weight_decay=0.0):
@@ -29,6 +33,14 @@ def get_base_model(cfg, inputs):
                                                      weights=None,
                                                      input_tensor=inputs,
                                                      pooling=None)
+    if hasattr(cfg.train.model, "is_freeze") and cfg.train.model.is_freeze:
+        log.info("Freeze base model : {}".format(cfg.train.model.class_name))
+        model.trainable = False
+    if hasattr(cfg.train.model, "is_finetune") and cfg.train.model.is_finetune:
+        log.info("Fine tune model : {}".format(cfg.train.model.class_name))
+        for layer in model.layers:
+            if isinstance(layer, tf.keras.layers.BatchNormalization):
+                layer.trainable = False
     return model
 
 
