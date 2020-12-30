@@ -24,15 +24,26 @@ def conv2d_bn_activation(x, output_filters, kernel_size=(2, 2), strides=(2, 2), 
 def get_base_model(cfg, inputs):
     model = None
     if cfg.train.model.class_name == "efficientnetb0":
-        model = tf.keras.applications.EfficientNetB0(include_top=False,
-                                                     weights=None,
-                                                     input_tensor=inputs,
-                                                     pooling=None)
-    if cfg.train.model.class_name == "efficientnetb4":
-        model = tf.keras.applications.EfficientNetB4(include_top=False,
-                                                     weights=None,
-                                                     input_tensor=inputs,
-                                                     pooling=None)
+        model = tf.keras.applications.EfficientNetB0(
+            include_top=False,
+            weights=None,
+            input_tensor=inputs,
+            pooling=None,
+            drop_connect_rate=cfg.train.model.config.dropout_rate)
+    elif cfg.train.model.class_name == "efficientnetb1":
+        model = tf.keras.applications.EfficientNetB1(
+            include_top=False,
+            weights=None,
+            input_tensor=inputs,
+            pooling=None,
+            drop_connect_rate=cfg.train.model.config.dropout_rate)
+    elif cfg.train.model.class_name == "efficientnetb4":
+        model = tf.keras.applications.EfficientNetB4(
+            include_top=False,
+            weights=None,
+            input_tensor=inputs,
+            pooling=None,
+            drop_connect_rate=cfg.train.model.config.dropout_rate)
     if hasattr(cfg.train.model, "is_freeze") and cfg.train.model.is_freeze:
         log.info("Freeze base model : {}".format(cfg.train.model.class_name))
         model.trainable = False
