@@ -195,12 +195,15 @@ class BaseDatasetGenerator:
 
     def _prefetch(self):
         while not self.queue.full():
-            filenames, labels = next(self.files_and_labels_gen)
-            if filenames is None:
+            try:
+                filenames, labels = next(self.files_and_labels_gen)
+            except StopIteration:
                 break
-            self.queue.put(
-                self.process_pool.apply_async(fetch, (filenames, labels, self.data_dir, self.image_width,
-                                                      self.image_height, self.is_train)))
+            else:
+                self.queue.put(
+                    self.process_pool.apply_async(fetch,
+                                                  (filenames, labels, self.data_dir, self.image_width,
+                                                   self.image_height, self.is_train)))
 
     def _get_files_and_labels_generator(self):
         raise NotImplementedError("Function _get_files_and_labels_generator is not implemented.")
@@ -288,7 +291,7 @@ def get_train_val_dataset(cfg,
             labels=df.label.to_numpy().astype(np.int),
             data_dir=data_dir,
             n_classes=n_classes,
-            batch_size=cfg.train.batch_size,
+            batch_size=cfg.train.val_batch_size,
             image_width=cfg.image_width,
             image_height=cfg.image_height,
         )
@@ -307,10 +310,10 @@ def get_train_val_dataset(cfg,
 
     val_gen = TestDatasetGenerator(
         val_df.image_id.to_numpy(),
-        df.label.to_numpy().astype(np.int),
+        val_df.label.to_numpy().astype(np.int),
         data_dir=data_dir,
         n_classes=n_classes,
-        batch_size=cfg.train.batch_size * 2,
+        batch_size=cfg.train.val_batch_size,
         image_width=cfg.image_width,
         image_height=cfg.image_height,
     )
@@ -348,15 +351,3 @@ def get_kfold_dataset(cfg):
             image_height=cfg.image_height,
         )
         yield train_gen, val_gen
-
-
-def get_test_dataset(test_data_dir="../input/cassava-leaf-disease-classification/test_images"):
-    """Get dataset for test.
-    Args:
-        test_data_dir (str) : Path to the directory where input images exist.
-    Return:
-        TestDatasetGenerator : test dataset generator
-    """
-    file_list = [os.path.basename(fname) for fname in glob.glob(os.path.join(test_data_dir, "*"))]
-    test_ds = TestDatasetGenerator(file_list, with_label=False)
-    return test_ds

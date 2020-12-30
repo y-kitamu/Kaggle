@@ -16,6 +16,7 @@ IMAGE_WIDTH = 800
 IMAGE_HEIGHT = 600
 
 TRAIN_CSV = DATA_ROOT / "train.csv"
+TEST_CSV = DATA_ROOT / "test.csv"
 TRAIN_DATA_DIR = DATA_ROOT / "train_images"
 TEST_DATA_DIR = DATA_ROOT / "test_images"
 
