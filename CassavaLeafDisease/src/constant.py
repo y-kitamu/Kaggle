@@ -43,7 +43,7 @@ class TrainParams:
     batch_size: int = 32
     start_epoch: int = 0
     initial_lr: float = 0.001
-    model: PartsParams = PartsParams(class_name="efficientnetb0", config={})
+    model: PartsParams = PartsParams(class_name="efficientnetb0", config={"dropout_rate": 0.7})
     optimizer: PartsParams = PartsParams(class_name="Adam", config={"leraning_rate": initial_lr})
     loss: PartsParams = PartsParams(class_name="CategoricalCrossentropy",
                                     config={
