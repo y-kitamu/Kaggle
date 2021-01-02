@@ -188,7 +188,7 @@ def train_impl(cfg, train_ds, val_ds, output_dir, idx):
               callbacks=callback_list)
 
 
-# @run_as_multiprocess
+@run_as_multiprocess
 def eval_impl(cfg, val_ds, output_dir, idx):
     set_gpu(cfg.gpu)
     models = [
@@ -197,8 +197,8 @@ def eval_impl(cfg, val_ds, output_dir, idx):
     ]
     val_ds.repeat(False)
     pred, true = predict(val_ds, models, cfg.n_classes)
+    print("\n{}".format(classification_report(true.argmax(axis=1), pred.argmax(axis=1))))
     clear_gpu(cfg.gpu)
-    return pred, true
 
 
 def train(cfg):
@@ -208,8 +208,6 @@ def train(cfg):
     log.info(title)
     log.info("=" * len(title))
 
-    preds = []
-    trues = []
     kf = get_kfold_dataset(cfg)
     output_dir = OUTPUT_ROOT / cfg.title
     for idx, (train_ds, val_ds) in enumerate(kf):
@@ -235,17 +233,8 @@ def train(cfg):
             cfg.train.model.is_freeze = True
 
         log.info("========== Start evaluation ==========")
-        pred, true = eval_impl(cfg, val_ds, output_dir, idx)
-        print("\n{}".format(classification_report(true.argmax(axis=1), pred.argmax(axis=1))))
-        preds.append(pred)
-        trues.append(true)
+        eval_impl(cfg, val_ds, output_dir, idx)
 
-    preds = np.concatenate(preds, axis=0).argmax(axis=1)
-    trues = np.concatenate(trues, axis=0).argmax(axis=1)
-    print("\n{}".format(classification_report(trues, preds)))
-    # metrics = classification_report(trues, preds, output_dict=True)
-    # accuracy = (preds == trues).sum() / preds.shape[0]
-    # log_to_mlflow(cfg, accuracy, metrics)
     clear_gpu(cfg.gpu)
     log.info("Successfully Finish Training!")
 

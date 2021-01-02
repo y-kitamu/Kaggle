@@ -63,9 +63,7 @@ def load_config(config_name="config.yaml", config_dir=str(CONFIG_ROOT)):
 def run_as_multiprocess(func):
 
     def run(*args, **kwargs):
-        # p = multiprocessing.pool.Pool(processes=1)
-        # res = p.apply(func=func, args=args, kwds=kwargs)
-        # return res.get()
+        # Pickle error occured when using mp.apply (or apply_async) instead of mp.Process.
         p = multiprocessing.Process(target=func, args=args, kwargs=kwargs)
         p.start()
         p.join()
