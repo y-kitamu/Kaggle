@@ -41,8 +41,8 @@ class LRScheduler(ReduceLROnPlateau):
 
     def __init__(self,
                  monitor='val_loss',
-                 factor=0.33,
-                 patience=2,
+                 factor=0.1,
+                 patience=3,
                  verbose=1,
                  mode='auto',
                  min_delta=1e-4,

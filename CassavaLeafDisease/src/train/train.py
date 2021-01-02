@@ -112,10 +112,11 @@ def prepare_callbacks(cfg, output_dir, fold_idx):
     log.debug("Result output directory : {}".format(output_dir))
     callback_list = []
     # callback_list.append(ProgressLogger())
+    callback_list.append(callbacks.ProgbarLogger(count_mode="steps"))
     callback_list.append(
         callbacks.CSVLogger(os.path.join(output_dir, "./train_log{}.csv".format(fold_idx))))
     # callback_list.append(callbacks.LearningRateScheduler(get_lr_scheduler(cfg)))
-    # callback_list.append(LRScheduler())
+    callback_list.append(LRScheduler())
     if hasattr(cfg.train, "earlystop_patience"):
         callback_list.append(
             callbacks.EarlyStopping(monitor="val_loss",
@@ -189,12 +190,14 @@ def train_impl(cfg, train_ds, val_ds, output_dir, idx):
 
 # @run_as_multiprocess
 def eval_impl(cfg, val_ds, output_dir, idx):
+    set_gpu(cfg.gpu)
     models = [
         get_and_load_model(cfg, os.path.join(output_dir, model_name.format(idx)))
         for model_name in ["best_val_acc{}.hdf5", "best_val_loss{}.hdf5"]
     ]
     val_ds.repeat(False)
     pred, true = predict(val_ds, models, cfg.n_classes)
+    clear_gpu(cfg.gpu)
     return pred, true
 
 
@@ -273,5 +276,8 @@ if __name__ == "__main__":
     parser.add_argument("--configdir", "-d", default=CONFIG_ROOT)
     args = parser.parse_args()
 
+    logging.basicConfig(format='%(asctime)s %(message)s',
+                        datefmt='%m/%d/%Y %I:%M:%S %p',
+                        level=logging.INFO)
     cfg = load_config(args.configname, args.configdir)
     train(cfg)
