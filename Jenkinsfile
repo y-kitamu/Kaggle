@@ -8,8 +8,8 @@ pipeline {
             steps {
                 sh '''
                    cd CassavaLeafDisease
-                   python setup.py bdist_wheel
                    rm -rf dist/*
+                   python setup.py bdist_wheel
                    cp /projects/Kaggle/CassavaLeafDisease/ext/* dist/
                    cp /projects/Kaggle/CassavaLeafDisease/dist/dataset-metadata.json dist/
                    KAGGLE_CONFIG_DIR=/projects/Kaggle kaggle datasets version -m "jenkins ci" -p dist
