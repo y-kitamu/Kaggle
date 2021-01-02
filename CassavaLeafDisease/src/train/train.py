@@ -17,7 +17,7 @@ from src.dataset import get_kfold_dataset, get_train_val_dataset
 from src.train.solver import Solver
 from src.train.lr_scheduler import manual_lr_scheduler
 from src.train.callbacks import ProgressLogger, LRScheduler
-from src.utility import set_gpu, load_config, run_as_multiprocess
+from src.utility import set_gpu, load_config, run_as_multiprocess, clear_gpu
 from src.constant import CONFIG_ROOT, OUTPUT_ROOT
 from src.predict import predict, get_and_load_model
 
@@ -26,7 +26,10 @@ log = logging.getLogger(__name__)
 
 def get_optimizer(cfg):
     if hasattr(cfg.train, "optimizer"):
-        return tf.keras.optimizers.get(dict(**cfg.train.optimizer))
+        if cfg.train.optimizer.class_name == "AdamW":
+            return tfa.optimizers.AdamW(**cfg.train.optimizer.config)
+        else:
+            return tf.keras.optimizers.get(dict(**cfg.train.optimizer))
     return Adam()
 
 
@@ -112,7 +115,7 @@ def prepare_callbacks(cfg, output_dir, fold_idx):
     callback_list.append(
         callbacks.CSVLogger(os.path.join(output_dir, "./train_log{}.csv".format(fold_idx))))
     # callback_list.append(callbacks.LearningRateScheduler(get_lr_scheduler(cfg)))
-    callback_list.append(LRScheduler())
+    # callback_list.append(LRScheduler())
     if hasattr(cfg.train, "earlystop_patience"):
         callback_list.append(
             callbacks.EarlyStopping(monitor="val_loss",
@@ -151,11 +154,8 @@ def prepare_callbacks(cfg, output_dir, fold_idx):
 
 
 def setup(cfg, output_dir, fold_idx=0):
-    try:
-        set_gpu(cfg.gpu)
-    except:
-        log.error("Failed to set gpu. Ignoring.")
     model = get_model(cfg)
+    # model.summary()
     if hasattr(cfg.train, "transfer_model"):
         log.info("Load weights from {}".format(cfg.train.transfer_model))
         model.load_weights(cfg.train.transfer_model, by_name=True)
@@ -170,6 +170,7 @@ def setup(cfg, output_dir, fold_idx=0):
 
 @run_as_multiprocess
 def train_impl(cfg, train_ds, val_ds, output_dir, idx):
+    set_gpu(cfg.gpu)
     model, _, _, callback_list = setup(cfg, output_dir, idx)
     start_epoch = restart_at(cfg, model, idx)
     if start_epoch >= cfg.train.epochs:
@@ -242,6 +243,7 @@ def train(cfg):
     # metrics = classification_report(trues, preds, output_dict=True)
     # accuracy = (preds == trues).sum() / preds.shape[0]
     # log_to_mlflow(cfg, accuracy, metrics)
+    clear_gpu(cfg.gpu)
     log.info("Successfully Finish Training!")
 
 

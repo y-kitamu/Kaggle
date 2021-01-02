@@ -5,6 +5,7 @@ import sys
 import multiprocessing
 
 import tensorflow as tf
+from numba import cuda
 
 from src.constant import CONFIG_ROOT
 
@@ -21,10 +22,17 @@ def run_debug(func):
         pdb.post_mortem(tb)
 
 
+def clear_gpu(gpu_id=0):
+    cuda.select_device(gpu_id)
+    cuda.close()
+    print("CUDA memory released: GPU {}".format(gpu_id))
+
+
 def set_gpu(gpu_id=0):
     if gpu_id < 0:
         tf.config.set_visible_devices([], 'GPU')
         return
+    clear_gpu(gpu_id)
     if tf.__version__ >= "2.1.0":
         physical_devices = tf.config.list_physical_devices('GPU')
         tf.config.list_physical_devices('GPU')
