@@ -50,6 +50,7 @@ def random_shift(affine_mat, input_size, output_size):
         output_size (tuple of int) : tuple of output image size: (output_height, output_width)
     """
     inv_scale = min(int(input_size[0] / output_size[0]), int(input_size[1] / output_size[0]))
+    inv_scale = min(1, inv_scale)
     scale = 1.0 / inv_scale
     affine_mat = scaling(affine_mat, scale)
 
@@ -423,7 +424,7 @@ def get_kfold_dataset(cfg):
         yield train_gen, val_gen
 
 
-def get_test_dataset(test_data_dir=TEST_DATA_DIR):
+def get_test_dataset(cfg, test_data_dir=TEST_DATA_DIR):
     """Get dataset for test.
     Args:
         test_data_dir (str) : Path to the directory where input images exist.
@@ -431,5 +432,10 @@ def get_test_dataset(test_data_dir=TEST_DATA_DIR):
         TestDatasetGenerator : test dataset generator
     """
     file_list = [os.path.basename(fname) for fname in glob.glob(os.path.join(test_data_dir, "*"))]
-    test_ds = TestDatasetGenerator(file_list, data_dir=test_data_dir, with_label=False)
+    test_ds = TestDatasetGenerator(file_list,
+                                   image_width=cfg.image_width,
+                                   image_height=cfg.image_height,
+                                   batch_size=cfg.train.val_batch_size,
+                                   data_dir=test_data_dir,
+                                   with_label=False)
     return test_ds
