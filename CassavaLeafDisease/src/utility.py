@@ -24,6 +24,8 @@ def run_debug(func):
 
 def clear_gpu(gpu_id=0):
     cuda.select_device(gpu_id)
+    device = cuda.get_current_device()
+    device.reset()
     cuda.close()
     print("CUDA memory released: GPU {}".format(gpu_id))
 
@@ -65,7 +67,11 @@ def run_as_multiprocess(func):
     def run(*args, **kwargs):
         # Pickle error occured when using mp.apply (or apply_async) instead of mp.Process.
         p = multiprocessing.Process(target=func, args=args, kwargs=kwargs)
-        p.start()
-        p.join()
+        try:
+            p.start()
+            p.join()
+            p.close()
+        except:
+            p.terminate()
 
     return run

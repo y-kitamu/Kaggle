@@ -37,6 +37,13 @@ def get_base_model(cfg, inputs):
             input_tensor=inputs,
             pooling=None,
             drop_connect_rate=cfg.train.model.config.dropout_rate)
+    elif cfg.train.model.class_name == "efficientnetb3":
+        model = tf.keras.applications.EfficientNetB3(
+            include_top=False,
+            weights=None,
+            input_tensor=inputs,
+            pooling=None,
+            drop_connect_rate=cfg.train.model.config.dropout_rate)
     elif cfg.train.model.class_name == "efficientnetb4":
         model = tf.keras.applications.EfficientNetB4(
             include_top=False,

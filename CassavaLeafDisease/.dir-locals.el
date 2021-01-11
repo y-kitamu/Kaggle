@@ -8,7 +8,7 @@
          ((docker-image-id . "python_lsp")
           (docker-container-name . "py-lsp-docker")
           (lsp-docker-client-configs
-           . ((:server-id pyright :docker-server-id pyright-docker :server-command "pyright-langserver --stdio"))))
+           . ((:server-id pyright :docker-server-id dpyright :server-command "pyright-langserver --stdio"))))
          ))
      )
   )
