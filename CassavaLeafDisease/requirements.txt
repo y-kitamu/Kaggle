@@ -3,3 +3,5 @@ hydra-core
 mlflow
 boto3
 numba
+optuna
+xgboost

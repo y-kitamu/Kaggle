@@ -61,7 +61,8 @@ def predict(dataset, models, n_classes=5):
         models (list of tf.keras.Model or tf.keras.Model) :
         n_classes (int)                                   :
     Retrun:
-        np.ndarray : 2D array of predictions ([Num Samples, Num Classes])
+        preds (np.ndarray) : 2D array of predictions ([Num Samples, Num Classes])
+        labels (np.ndarray) : 2D array of labels (one-hot encoding)
     """
     log.info("Start prediction")
     log.info("Evaluate data num : {}".format(len(dataset)))

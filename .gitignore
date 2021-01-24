@@ -9,7 +9,6 @@ __pycache__
 *.png
 *.jpg
 *.pth
-*.ipynb
 *.csv
 *.h5
 *.hdf5
