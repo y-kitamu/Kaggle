@@ -1,0 +1,22 @@
+version: '2.3'
+
+services:
+  birdclef:
+    build:
+      context: ./
+      args:
+        user: ${USER}
+    container_name: birdclef
+    hostname: birdclef
+    runtime: nvidia
+    ports:
+      - 33322:22
+      - 7088:8888
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /etc/localtime:/etc/localtime
+      - /etc/passwd:/etc/passwd
+      - /etc/shadow:/etc/shadow
+      - /etc/group:/etc/group
+      - ~/work:/home/${USER}/work
+    entrypoint: /home/${USER}/config/entrypoint.sh
