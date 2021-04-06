@@ -1,6 +1,6 @@
 #!/bin/bash
 # check if commit message has valid prefix.
-prefixes=("chore:" "docs:" "feat:" "exp:" "refactor:" "fix:")
+prefixes=("new_contest:" "chore:" "docs:" "feat:" "exp:" "refactor:" "fix:")
 prefix=$(grep -m 1 -oP '^.*?:' "$1")
 for pref in "${prefixes[@]}"
 do

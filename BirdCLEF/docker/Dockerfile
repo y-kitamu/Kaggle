@@ -41,9 +41,6 @@ ADD .style.yapf /home/${user}/
 RUN npm install pyright -g
 
 # python packages
-ADD requirements.txt /tmp/requirements.txt
 RUN pip3 install -U pip
+ADD requirements.txt /tmp/requirements.txt
 RUN pip3 install -r /tmp/requirements.txt && rm -rf /tmp/requirements.txt
-
-# entrypoint
-ADD entrypoint.sh /home/${user}/config/

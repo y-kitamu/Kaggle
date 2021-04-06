@@ -1,4 +1,4 @@
-version: '2.3'
+version: '3.8'
 
 services:
   birdclef:
@@ -6,12 +6,16 @@ services:
       context: ./
       args:
         user: ${USER}
-    container_name: birdclef
     hostname: birdclef
-    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+            # driver: nvidia
     ports:
-      - 33322:22
-      - 7088:8888
+      - "7088:8888"
+      - "33321:22"
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /etc/localtime:/etc/localtime
@@ -19,4 +23,9 @@ services:
       - /etc/shadow:/etc/shadow
       - /etc/group:/etc/group
       - ~/work:/home/${USER}/work
-    entrypoint: /home/${USER}/config/entrypoint.sh
+      - ./.jupyter:/home/${USER}/.jupyter
+    environment:
+      USER_NAME: ${USER}
+      LD_LIBRARY_PATH: /usr/local/cuda/lib64
+    entrypoint: /home/${USER}/work/Kaggle/BirdCLEF/docker/entrypoint.sh
+    restart: always

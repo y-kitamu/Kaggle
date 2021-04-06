@@ -1,8 +1,9 @@
 #!/bin/bash
 
 function run_jupyter() {
-    jupyter lab --ip='*' --port=8888 --no-browser --allow-root --NotebookApp.token='' --notebook-dir=/home/`id -n -u`/work
+    jupyter lab --ip='*' --port=8888 --no-browser --NotebookApp.token='' --notebook-dir=/home/`id -n -u`/work
 }
 
 /usr/sbin/sshd
-sudo -u ${USER_NAME} -sH run_jupyter
+RUN_JUPYTER=$(declare -f run_jupyter)
+sudo LD_LIBRARY_PATH=${LD_LIBRARY_PATH} -H -u ${USER_NAME} bash -c "${RUN_JUPYTER}; run_jupyter"
