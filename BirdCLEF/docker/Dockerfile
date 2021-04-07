@@ -36,6 +36,7 @@ RUN jupyter labextension install jupyterlab-emacskeys
 
 RUN jupyter lab build
 
+ADD .style.yapf /root/
 ADD .style.yapf /home/${user}/
 
 RUN npm install pyright -g

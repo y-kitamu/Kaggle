@@ -24,6 +24,7 @@ services:
       - /etc/group:/etc/group
       - ~/work:/home/${USER}/work
       - ./.jupyter:/home/${USER}/.jupyter
+      - ~/.ssh:/home/${USER}/.ssh
     environment:
       USER_NAME: ${USER}
       LD_LIBRARY_PATH: /usr/local/cuda/lib64
