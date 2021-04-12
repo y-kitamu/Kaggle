@@ -21,6 +21,6 @@ def create_simple_model(input_shape: Tuple[int, int, int],
     x = Conv2D(64, kernel_size=(3, 3), strides=(2, 2), activation=activation, use_bias=True)(x)
     x = GlobalAveragePooling2D()(x)
     x = Dropout(rate=dropout_rate)(x)
-    output = Dense(output_classes, use_bias=False)(x)
+    output = Dense(output_classes)(x)
     model = tf.keras.Model(inputs=input, outputs=output)
     return model

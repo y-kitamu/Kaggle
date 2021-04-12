@@ -32,7 +32,7 @@ class Controller(object):
 
         self.trainer.on_train_begin()
         for i in range(epochs):
-            self.trainer.train()
+            self.trainer.train(self.strategy)
         self.trainer.on_train_end()
 
     def evaluate(self) -> None:

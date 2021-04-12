@@ -41,6 +41,7 @@ class TaskConfig(base_config.Config):
     validation_data: DataConfig = DataConfig(is_training=False)
     input_shape: Tuple[int, int, int] = (28, 28, 1)
     output_classes: int = 10
+    batch_size: int = 4
 
 
 @dataclasses.dataclass

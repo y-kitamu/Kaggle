@@ -33,7 +33,7 @@ class MnistTask():
         pass
 
     def build_model(self) -> tf.keras.Model:
-        return create_simple_model(self.task_config.input_shape, self.task_config.output_classes)
+        return create_simple_model(self.config.input_shape, self.config.output_classes)
 
     def build_inputs(self,
                      is_training: bool,
@@ -41,7 +41,9 @@ class MnistTask():
         config = self.config.train_data if is_training else self.config.validation_data
         tfrecords = glob.glob(
             os.path.join(config.tfrecords_dir, "{}*.tfrecords".format(config.tfrecords_basename)))
-        return create_dataset_from_tfrecord(tfrecords)
+        dataset = create_dataset_from_tfrecord(tfrecords)
+        dataset = dataset.shuffle(1000).repeat().batch(self.config.batch_size)
+        return dataset
 
     def build_metrics(self, training: bool = True) -> List[tf.metrics.Metric]:
         metrics = [tf.metrics.Accuracy, tf.metrics.CategoricalCrossentropy]
