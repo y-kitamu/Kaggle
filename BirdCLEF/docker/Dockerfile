@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.5.0rc0-gpu-jupyter
+FROM tensorflow/tensorflow:2.4.1-gpu-jupyter
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -45,3 +45,6 @@ RUN npm install pyright -g
 RUN pip3 install -U pip
 ADD requirements.txt /tmp/requirements.txt
 RUN pip3 install -r /tmp/requirements.txt && rm -rf /tmp/requirements.txt
+
+ADD ./protoc/bin/protoc /usr/local/bin/
+RUN chmod +x /usr/local/bin/protoc

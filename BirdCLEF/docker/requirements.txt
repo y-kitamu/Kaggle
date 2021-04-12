@@ -1,2 +1,9 @@
 tfx
 tf-models-official
+optuna
+logzero
+tqdm
+matplotlib
+opencv-python
+numpy
+numba
