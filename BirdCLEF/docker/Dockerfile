@@ -46,5 +46,8 @@ RUN pip3 install -U pip
 ADD requirements.txt /tmp/requirements.txt
 RUN pip3 install -r /tmp/requirements.txt && rm -rf /tmp/requirements.txt
 
+# make sure to python3 (for pyright)
+RUN rm /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
+
 ADD ./protoc/bin/protoc /usr/local/bin/
 RUN chmod +x /usr/local/bin/protoc

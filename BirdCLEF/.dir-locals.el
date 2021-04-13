@@ -2,7 +2,7 @@
  (nil
   . ((dir-local-docker-config-alists
       . (
-         ((docker-image-id . "docker-birdclef")
+         ((docker-image-id . "docker_birdclef")
           (docker-container-name . "py-lsp-docker")
           (lsp-docker-client-configs
            . ((:server-id pyright :docker-server-id dpyright :server-command "pyright-langserver --stdio"))))
