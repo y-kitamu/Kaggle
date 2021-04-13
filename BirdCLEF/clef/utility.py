@@ -39,13 +39,17 @@ def set_gpu(gpu_id=0):
     if len(gpu_id) == 0 or gpu_id[0] < 0:
         tf.config.set_visible_devices([], 'GPU')
         return
+    for id in gpu_id:
+        _set_gpu_impl(id)
+
+
+def _set_gpu_impl(gpu_id):
     clear_gpu(gpu_id)
     if tf.__version__ >= "2.1.0":
         physical_devices = tf.config.list_physical_devices('GPU')
-        devices = [physical_devices[id] for id in gpu_id]
         tf.config.list_physical_devices('GPU')
-        tf.config.set_visible_devices(devices, 'GPU')
-        tf.config.experimental.set_memory_growth(devices, True)
+        tf.config.set_visible_devices(physical_devices[gpu_id], 'GPU')
+        tf.config.experimental.set_memory_growth(physical_devices[gpu_id], True)
     elif tf.__version__ >= "2.0.0":
         #TF2.0
         physical_devices = tf.config.experimental.list_physical_devices('GPU')

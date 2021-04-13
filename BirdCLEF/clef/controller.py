@@ -1,3 +1,5 @@
+from typing import Optional
+
 import tensorflow as tf
 
 import clef
@@ -19,9 +21,10 @@ class Controller(object):
         self._evaluator = evaluator
         self.strategy = self.get_strategy()
 
-    def get_strategy(self):
+    def get_strategy(self) -> tf.distribute.Strategy:
         if self.config.strategy == "mirrored":
             return tf.distribute.MirroredStrategy()
+        return tf.distribute.get_strategy()
 
     def train(self, epochs: int) -> None:
         if self.trainer is None:
@@ -32,7 +35,8 @@ class Controller(object):
 
         self.trainer.on_train_begin()
         for i in range(epochs):
-            self.trainer.train(self.strategy)
+            self.trainer.train(i, self.strategy)
+            self.trainer.validation(i, self.strategy)
         self.trainer.on_train_end()
 
     def evaluate(self) -> None:
@@ -40,13 +44,13 @@ class Controller(object):
 
     # TODO : remove boilerplate
     @property
-    def config(self):
+    def config(self) -> config_definitions.ControllerConfig:
         return self._config
 
     @property
-    def trainer(self):
+    def trainer(self) -> Optional[Trainer]:
         return self._trainer
 
     @property
-    def evaluator(self):
+    def evaluator(self) -> Optional[Evaluator]:
         return self._evaluator

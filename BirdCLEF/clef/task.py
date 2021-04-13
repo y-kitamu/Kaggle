@@ -1,7 +1,8 @@
 import os
 import glob
-from typing import Optional, Any, List, Dict, Tuple
+from typing import Optional, Any, List, Dict, Tuple, Union
 
+import numpy as np
 import tensorflow as tf
 
 from clef import config_definitions
@@ -23,7 +24,7 @@ class MnistTask():
         self.loss_fn = self.create_loss_function()
 
     def create_loss_function(self) -> Any:
-        return tf.keras.losses.categorical_crossentropy
+        return tf.keras.losses.sparse_categorical_crossentropy
 
     def create_optimizer(self) -> Any:
         optimizer = tf.keras.optimizers.Adam()
@@ -42,12 +43,22 @@ class MnistTask():
         tfrecords = glob.glob(
             os.path.join(config.tfrecords_dir, "{}*.tfrecords".format(config.tfrecords_basename)))
         dataset = create_dataset_from_tfrecord(tfrecords)
-        dataset = dataset.shuffle(1000).repeat().batch(self.config.batch_size)
+        if is_training:
+            dataset = dataset.shuffle(1000).repeat().batch(self.config.batch_size)
+        else:
+            dataset = dataset.batch(self.config.batch_size)
         return dataset
 
     def build_metrics(self, training: bool = True) -> List[tf.metrics.Metric]:
-        metrics = [tf.metrics.Accuracy, tf.metrics.CategoricalCrossentropy]
+        metrics = [tf.metrics.Accuracy(), tf.metrics.CategoricalCrossentropy()]
         return metrics
+
+    def process_metrics(self, metrics, labels, outputs, logs):
+        if metrics:
+            for metric in metrics:
+                metric.update_state(tf.one_hot(labels, self.config.output_classes), outputs)
+            logs.update({m.name: m.result() for m in metrics})
+        return logs
 
     def train_step(self, inputs: Tuple[Any, Any], model: tf.keras.Model,
                    optimizer: tf.keras.optimizers.Optimizer,
@@ -67,12 +78,40 @@ class MnistTask():
             outputs = model(images, training=True)
             loss = self.loss_fn(labels, outputs)
             scaled_loss = loss / tf.distribute.get_strategy().num_replicas_in_sync
-        grads = tape.gradients(scaled_loss, model.trainable_variables)
+        grads = tape.gradient(scaled_loss, model.trainable_variables)
+
         optimizer.apply_gradients(list(zip(grads, model.trainable_variables)))
 
         logs = {self.loss: loss}
-        if metrics:
-            for metric in metrics:
-                metric.update_state(labels, outputs)
-            logs.update({m.name: m.result() for m in metrics})
+        logs = self.process_metrics(metrics, labels, outputs, logs)
         return logs
+
+    def validation_step(self, inputs: Tuple[Any, Any], model: tf.keras.Model,
+                        metrics: List[tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
+        """validation 1 step
+        Args:
+            inputs (tuple) : tuple of (input images, labels).
+                images = 4d-array ([B, H, W, C]), label = 2d-array ([B, categorical label])
+            model (tf.keras.Model) :
+            metrics (list) :
+        Return:
+            logs (dict) :
+        """
+        images, labels = inputs
+        outputs = self.inference_step(images, model)
+        loss = self.loss_fn(labels, outputs)
+
+        logs = {self.loss: loss}
+        logs = self.process_metrics(metrics, labels, outputs, logs)
+        return logs
+
+    def inference_step(self, inputs: Union[tf.Tensor, np.ndarray],
+                       model: tf.keras.Model) -> Union[tf.Tensor, np.ndarray]:
+        """inference inputs
+        Args:
+            inputs (tf.Tensor or np.ndarray) : input images (4d-array [B, H, W, C])
+            model (tf.keras.Tensor) :
+        Return:
+            (tf.Tensor or np.ndarray) : model output
+        """
+        return model(inputs, training=False)
