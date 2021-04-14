@@ -42,6 +42,8 @@ class TaskConfig(base_config.Config):
     input_shape: Tuple[int, int, int] = (28, 28, 1)
     output_classes: int = 10
     batch_size: int = 4
+    steps_per_epoch = 100
+    epochs = 20
 
 
 @dataclasses.dataclass

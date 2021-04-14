@@ -16,7 +16,7 @@ import sys
 LOGGER_NAME = __name__
 DEFAULT_LOGLEVEL = logging.DEBUG
 SHORT_FORMATTER = logging.Formatter(
-    fmt="[%(asctime)s %(levelname)s func %(funcName)s at line %(lineno)d] %(message)s",
+    fmt="[%(asctime)s %(levelname)s file %(module)s at line %(lineno)d] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
 LONG_FORMATTER = logging.Formatter(
     fmt="[%(asctime)s %(levelname)s %(pathname)s in %(funcName)s at line %(lineno)d] %(message)s")

@@ -12,11 +12,10 @@ class Trainer(object):
 
     epoch = "epoch"
 
-    def __init__(self, config: config_definitions.TrainerConfig, task: task.MnistTask,
-                 steps_per_epoch: int) -> None:
+    def __init__(self, config: config_definitions.TrainerConfig, task: task.MnistTask) -> None:
         self._config = config
         self._task = task
-        self.steps_per_epoch = steps_per_epoch
+        self.steps_per_epoch = self._task.config.steps_per_epoch
 
         # dataset
         self.train_dataset = self.task.build_inputs(is_training=True)
@@ -37,19 +36,21 @@ class Trainer(object):
         self.train_metrics = self.task.build_metrics(training=True) + self._model.metrics
         self.validation_metrics = self.task.build_metrics(training=False) + self._model.metrics
 
-    # @tf.function(jit_compile=True)
+        self.train_dataset = strategy.experimental_distribute_dataset(self.train_dataset)
+        self.validation_dataset = strategy.experimental_distribute_dataset(self.validation_dataset)
+
     def train(self, epoch: int, strategy: tf.distribute.Strategy) -> None:
         """train 1-epoch.
         """
         self.on_epoch_begin({self.epoch: epoch})
-        # task_train_step = tf.function(self.task.train_step)  #, jit_compile=True)
-        task_train_step = self.task.train_step
+        task_train_step = tf.function(self.task.train_step)  #, jit_compile=True)
+
         train_itr = iter(self.train_dataset)
         for _, inputs in zip(range(self.steps_per_epoch), train_itr):
             self.on_step_begin()
             logs = strategy.run(task_train_step,
                                 args=(inputs, self.model, self.optimizer, self.train_metrics))
-            self.on_step_end(logs)
+            # self.on_step_end(logs)
 
     def validation(self, epoch: int, strategy: tf.distribute.Strategy) -> None:
         for metric in self.validation_metrics:

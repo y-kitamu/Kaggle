@@ -19,14 +19,16 @@ class Controller(object):
         self._config = config
         self._trainer = trainer
         self._evaluator = evaluator
+        self.epochs = trainer.task.config.epochs
         self.strategy = self.get_strategy()
 
     def get_strategy(self) -> tf.distribute.Strategy:
         if self.config.strategy == "mirrored":
-            return tf.distribute.MirroredStrategy()
+            return tf.distribute.MirroredStrategy(devices=["GPU:0", "GPU:1"])
         return tf.distribute.get_strategy()
 
-    def train(self, epochs: int) -> None:
+    def train(self, epochs: Optional[int] = None) -> None:
+        epochs = epochs or self.epochs
         if self.trainer is None:
             clef.logger.warning("Trainer object is not set in Controller. Abort `train`")
             return
