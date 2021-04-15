@@ -36,33 +36,37 @@ class MnistTask():
     def build_model(self) -> tf.keras.Model:
         return create_simple_model(self.config.input_shape, self.config.output_classes)
 
-    def build_inputs(self,
-                     is_training: bool,
-                     input_context: Optional[tf.distribute.InputContext] = None) -> tf.data.Dataset:
+    def build_inputs(self, is_training: bool) -> tf.data.Dataset:
         config = self.config.train_data if is_training else self.config.validation_data
         tfrecords = glob.glob(
             os.path.join(config.tfrecords_dir, "{}*.tfrecords".format(config.tfrecords_basename)))
         dataset = create_dataset_from_tfrecord(tfrecords)
         if is_training:
-            dataset = dataset.shuffle(1000).repeat().batch(self.config.batch_size)
+            dataset = dataset.shuffle(60000).repeat().batch(self.config.batch_size)
         else:
             dataset = dataset.batch(self.config.batch_size)
         return dataset
 
-    def build_metrics(self, training: bool = True) -> List[tf.metrics.Metric]:
-        metrics = [tf.metrics.Accuracy(), tf.metrics.CategoricalCrossentropy()]
+    def build_metrics(self, training: bool = True) -> Dict[str, tf.metrics.Metric]:
+        metrics = {
+            "accuracy": tf.metrics.CategoricalAccuracy(),
+            "ce_loss": tf.metrics.CategoricalCrossentropy()
+        }
         return metrics
 
-    def process_metrics(self, metrics, labels, outputs, logs):
+    def process_metrics(self, metrics: Dict[str, tf.keras.metrics.Metric],
+                        labels: Union[tf.Tensor, np.ndarray], outputs: Union[tf.Tensor, np.ndarray],
+                        logs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         if metrics:
-            for metric in metrics:
-                metric.update_state(tf.one_hot(labels, self.config.output_classes), outputs)
-            logs.update({m.name: m.result() for m in metrics})
+            labels = tf.one_hot(labels, self.config.output_classes)
+            for metric in metrics.values():
+                metric.update_state(labels, outputs)
+            logs.update({m.name: m.result() for m in metrics.values()})
         return logs
 
     def train_step(self, inputs: Tuple[Any, Any], model: tf.keras.Model,
                    optimizer: tf.keras.optimizers.Optimizer,
-                   metrics: List[tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
+                   metrics: Dict[str, tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
         """train 1 step.
         Args:
             inputs (tuple) :
@@ -76,7 +80,7 @@ class MnistTask():
 
         with tf.GradientTape() as tape:
             outputs = model(images, training=True)
-            loss = self.loss_fn(labels, outputs)
+            loss = self.loss_fn(labels, outputs, from_logits=True)
             scaled_loss = loss / tf.distribute.get_strategy().num_replicas_in_sync
         grads = tape.gradient(scaled_loss, model.trainable_variables)
 
@@ -87,7 +91,7 @@ class MnistTask():
         return logs
 
     def validation_step(self, inputs: Tuple[Any, Any], model: tf.keras.Model,
-                        metrics: List[tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
+                        metrics: Dict[str, tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
         """validation 1 step
         Args:
             inputs (tuple) : tuple of (input images, labels).

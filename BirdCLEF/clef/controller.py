@@ -37,8 +37,12 @@ class Controller(object):
 
         self.trainer.on_train_begin()
         for i in range(epochs):
-            self.trainer.train(i, self.strategy)
-            self.trainer.validation(i, self.strategy)
+            # TODO : refactor
+            self.trainer.on_epoch_begin({self.trainer.epoch: i})
+            self.trainer.train(self.strategy)
+            self.trainer.on_validation_begin()
+            self.trainer.validation(self.strategy)
+            self.trainer.on_epoch_end()
         self.trainer.on_train_end()
 
     def evaluate(self) -> None:
