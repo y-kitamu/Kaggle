@@ -1,5 +1,6 @@
 VERSION = (1, 0, 0)
 
+from clef import callbacks
 from clef import utility
 from clef import config_definitions
 from clef import data

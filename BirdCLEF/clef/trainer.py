@@ -1,11 +1,13 @@
-from typing import Optional
-import time
+from typing import Optional, List
 
 import tensorflow as tf
 
-import clef
 from clef import task
 from clef import config_definitions
+from clef.callbacks.callback_delegate import CallbackDelegate
+from clef.callbacks.logger import Logger
+from clef.callbacks.progressbar import ProgressBar
+from clef.callbacks.callback_list import CallbackList
 
 
 class Trainer(object):
@@ -13,7 +15,12 @@ class Trainer(object):
     epoch = "epoch"
     step = "step"
 
-    def __init__(self, config: config_definitions.TrainerConfig, task: task.MnistTask) -> None:
+    default_callbacks = [ProgressBar(), Logger()]
+
+    def __init__(self,
+                 config: config_definitions.TrainerConfig,
+                 task: task.MnistTask,
+                 callbacks: List[CallbackDelegate] = []) -> None:
         self._config = config
         self._task = task
         self.steps_per_epoch = self._task.config.steps_per_epoch
@@ -28,6 +35,10 @@ class Trainer(object):
 
         self._model = None
         self._optimizer = None
+
+        # callbacks
+        self.callback_list = CallbackList(self.default_callbacks + callbacks)
+        self.callback_list.set_trainer(self)
 
     def compile(self, strategy: tf.distribute.Strategy) -> None:
         with strategy.scope():
@@ -61,12 +72,10 @@ class Trainer(object):
             self.validation_loss.update_state(strategy.reduce("sum", logs[self.task.loss], axis=0))
 
     def on_train_begin(self, logs=None) -> None:
-        clef.logger.info("Start Training.")
+        self.callback_list.on_train_begin(logs)
 
     def on_epoch_begin(self, logs=None) -> None:
-        self.epoch_begin = time.time()
-        clef.logger.info("".join(["=" for _ in range(40)]))
-        clef.logger.info("Epoch {}".format(logs[self.epoch]))
+        self.callback_list.on_epoch_begin(logs)
 
         # reset metrics
         self.train_loss.reset_states()
@@ -74,49 +83,27 @@ class Trainer(object):
             metric.reset_states()
 
     def on_step_begin(self, logs=None) -> None:
-        stats = ", ".join([
-            "{} = {:.3f}".format(key,
-                                 value.result().numpy()) for key, value in self.train_metrics.items()
-        ])
-        print("\r {} / {} ({})".format(logs[self.step], self.steps_per_epoch, stats), end="")
+        self.callback_list.on_step_begin(logs)
 
     def on_step_end(self, logs=None) -> None:
-        pass
+        self.callback_list.on_step_end(logs)
 
     def on_epoch_end(self, logs=None) -> None:
-        print("\r", end="")
-        self.epoch_end = time.time()
-
-        header = "|".join(["{:7s}".format(""), "{:10s}".format("Loss")] +
-                          ["{:10s}".format(key) for key in self.train_metrics.keys()])
-        train = "|".join([
-            "{:7s}".format("Train"), "{:10s}".format("{:.3f}".format(self.train_loss.result().numpy()))
-        ] + [
-            "{:10s}".format("{:.3f}".format(val.result().numpy()))
-            for val in self.train_metrics.values()
-        ])
-        valid = "|".join([
-            "{:7s}".format("Valid"), "{:10s}".format("{:.3f}".format(
-                self.validation_loss.result().numpy()))
-        ] + [
-            "{:10s}".format("{:.3f}".format(val.result().numpy()))
-            for val in self.validation_metrics.values()
-        ])
-        clef.logger.info(header)
-        clef.logger.info(train)
-        clef.logger.info(valid)
-        clef.logger.info("Elapsed Time : {:.2f} second".format(self.epoch_end - self.epoch_begin))
+        self.callback_list.on_epoch_end(logs)
 
     def on_train_end(self, logs=None) -> None:
-        clef.logger.info("End Training")
+        self.callback_list.on_train_end(logs)
 
-    def on_validation_begin(self, logs=None):
+    def on_validation_begin(self, logs=None) -> None:
+        self.callback_list.on_validation_begin(logs)
+
+        # reset metrics
         self.validation_loss.reset_states()
         for metric in self.validation_metrics.values():
             metric.reset_states()
 
-    def on_validation_end(self, logs=None):
-        pass
+    def on_validation_end(self, logs=None) -> None:
+        self.callback_list.on_validation_end(logs)
 
     @property
     def config(self) -> config_definitions.TrainerConfig:
