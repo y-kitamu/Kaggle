@@ -30,4 +30,4 @@ services:
       USER_NAME: ${USER}
       LD_LIBRARY_PATH: /usr/local/cuda/lib64
     entrypoint: /home/${USER}/work/Kaggle/BirdCLEF/docker/entrypoint.sh
-    # restart: always
+    restart: always

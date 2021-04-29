@@ -20,4 +20,4 @@ function run_as_user() {
 RUN_AS_USER=$(declare -f run_as_user)
 PROJECT_DOCKER_DIR=$(dirname $0)
 PROJECT_ROOT=$(dirname ${PROJECT_DOCKER_DIR})
-sudo LD_LIBRARY_PATH=${LD_LIBRARY_PATH} -H -u ${USER_NAME} bash -c "${RUN_AS_USER}"; run_as_user ${PROJECT_ROOT}
+sudo LD_LIBRARY_PATH=${LD_LIBRARY_PATH} -H -u ${USER_NAME} bash -c "${RUN_AS_USER}; run_as_user ${PROJECT_ROOT}"
