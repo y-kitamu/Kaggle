@@ -1,13 +1,14 @@
-from typing import Optional, List
+from typing import Optional, TYPE_CHECKING
 
 import tensorflow as tf
 
-from clef import task
-from clef import config_definitions
-from clef.callbacks.callback_delegate import CallbackDelegate
 from clef.callbacks.logger import Logger
 from clef.callbacks.progressbar import ProgressBar
 from clef.callbacks.callback_list import CallbackList
+
+if TYPE_CHECKING:
+    from clef.tasks import BaseTask
+    from clef.config_definitions import TrainerConfig
 
 
 class Trainer(object):
@@ -17,10 +18,7 @@ class Trainer(object):
 
     default_callbacks = [ProgressBar(), Logger()]
 
-    def __init__(self,
-                 config: config_definitions.TrainerConfig,
-                 task: task.MnistTask,
-                 callbacks: List[CallbackDelegate] = []) -> None:
+    def __init__(self, config: "TrainerConfig", task: "BaseTask") -> None:
         self._config = config
         self._task = task
         self.steps_per_epoch = self._task.config.steps_per_epoch
@@ -30,23 +28,24 @@ class Trainer(object):
         self.validation_dataset = self.task.build_inputs(is_training=False)
 
         # metrics
-        self.train_loss = tf.keras.metrics.Mean("training_loss", dtype=tf.float32)
-        self.validation_loss = tf.keras.metrics.Mean("validation_loss", dtype=tf.float32)
+        self.train_loss: tf.keras.metrics.Metric = tf.keras.metrics.Mean("training_loss",
+                                                                         dtype=tf.float32)
+        self.validation_loss: tf.keras.metrics.Metric = tf.keras.metrics.Mean("validation_loss",
+                                                                              dtype=tf.float32)
+        self.train_metrics = self.task.build_metrics(training=True)
+        self.validation_metrics = self.task.build_metrics(training=False)
+
+        # callbacks
+        self.callback_list = CallbackList(self.default_callbacks + task.build_callbacks())
+        self.callback_list.set_trainer(self)
 
         self._model = None
         self._optimizer = None
-
-        # callbacks
-        self.callback_list = CallbackList(self.default_callbacks + callbacks)
-        self.callback_list.set_trainer(self)
 
     def compile(self, strategy: tf.distribute.Strategy) -> None:
         with strategy.scope():
             self._model = self.task.build_model()
             self._optimizer = self.task.create_optimizer()
-
-        self.train_metrics = self.task.build_metrics(training=True)
-        self.validation_metrics = self.task.build_metrics(training=False)
 
         self.train_dataset = strategy.experimental_distribute_dataset(self.train_dataset)
         self.validation_dataset = strategy.experimental_distribute_dataset(self.validation_dataset)
@@ -79,7 +78,7 @@ class Trainer(object):
 
         # reset metrics
         self.train_loss.reset_states()
-        for metric in self.train_metrics.values():
+        for metric in self.train_metrics:
             metric.reset_states()
 
     def on_step_begin(self, logs=None) -> None:
@@ -99,18 +98,18 @@ class Trainer(object):
 
         # reset metrics
         self.validation_loss.reset_states()
-        for metric in self.validation_metrics.values():
+        for metric in self.validation_metrics:
             metric.reset_states()
 
     def on_validation_end(self, logs=None) -> None:
         self.callback_list.on_validation_end(logs)
 
     @property
-    def config(self) -> config_definitions.TrainerConfig:
+    def config(self) -> "TrainerConfig":
         return self._config
 
     @property
-    def task(self) -> task.MnistTask:
+    def task(self) -> "BaseTask":
         return self._task
 
     @property

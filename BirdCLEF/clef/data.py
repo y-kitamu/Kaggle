@@ -75,7 +75,7 @@ def write_images_to_tfrecord(images: np.ndarray, labels: np.ndarray, record_file
     with tf.io.TFRecordWriter(record_file) as writer:
         for image, label in zip(images, labels):
             tf_example = image_to_pb(image, label)
-            writer.write(tf_example.SerializeToString())
+            writer.write(tf_example.SerializeToString())  # type: ignore
 
 
 def mnist_data_to_tfrecord(file_basename: str, record_dir: str) -> None:
@@ -93,5 +93,5 @@ def mnist_data_to_tfrecord(file_basename: str, record_dir: str) -> None:
     write_images_to_tfrecord(x_train, y_train, train_record_file)
     clef.logger.info("Write train data to {}".format(train_record_file))
     test_record_file = os.path.join(record_dir, "{}_test.tfrecordds".format(file_basename))
-    write_images_to_tfrecord(x_train, y_train, test_record_file)
+    write_images_to_tfrecord(x_test, y_test, test_record_file)
     clef.logger.info("Write test data to {}".format(test_record_file))

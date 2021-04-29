@@ -1,17 +1,15 @@
-from typing import Optional, List, Tuple
+from typing import Optional, Tuple
 
 import dataclasses
 
 from official.modeling.hyperparams import base_config
-from official.modeling.optimization.configs import optimization_config
-
-OptimizationConfig = optimization_config.OptimizationConfig
 
 
 @dataclasses.dataclass
 class DataConfig(base_config.Config):
     name: Optional[str] = None
     is_training: bool = True
+    num_data: int = 60000
     tfrecords_dir: str = ""
     tfrecords_basename: str = ""
 

@@ -1,24 +1,19 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import tensorflow as tf
 
-import clef
-from clef.trainer import Trainer
-from clef.evaluator import Evaluator
-from clef import config_definitions
+if TYPE_CHECKING:
+    from clef.trainer import Trainer
+    from clef.config_definitions import ControllerConfig
 
 
 class Controller(object):
     """Class that controls the outer loop of model training and evaluation.
     """
 
-    def __init__(self,
-                 config: config_definitions.ControllerConfig,
-                 trainer: Trainer = None,
-                 evaluator: Evaluator = None) -> None:
+    def __init__(self, config: "ControllerConfig", trainer: "Trainer") -> None:
         self._config = config
         self._trainer = trainer
-        self._evaluator = evaluator
         self.epochs = trainer.task.config.epochs
         self.strategy = self.get_strategy()
 
@@ -29,10 +24,6 @@ class Controller(object):
 
     def train(self, epochs: Optional[int] = None) -> None:
         epochs = epochs or self.epochs
-        if self.trainer is None:
-            clef.logger.warning("Trainer object is not set in Controller. Abort `train`")
-            return
-
         self.trainer.compile(self.strategy)
 
         self.trainer.on_train_begin()
@@ -50,13 +41,9 @@ class Controller(object):
 
     # TODO : remove boilerplate
     @property
-    def config(self) -> config_definitions.ControllerConfig:
+    def config(self) -> "ControllerConfig":
         return self._config
 
     @property
-    def trainer(self) -> Optional[Trainer]:
+    def trainer(self) -> "Optional[Trainer]":
         return self._trainer
-
-    @property
-    def evaluator(self) -> Optional[Evaluator]:
-        return self._evaluator

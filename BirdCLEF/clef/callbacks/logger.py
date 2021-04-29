@@ -19,23 +19,21 @@ class Logger(CallbackDelegate):
 
     def on_epoch_end(self, logs: Optional[Dict[str, Any]] = None) -> None:
         self.epoch_end = time.time()
-        header = "|".join(["{:7s}".format(""), "{:10s}".format("Loss")] +
-                          ["{:10s}".format(key) for key in self.trainer.train_metrics.keys()])
+        header = "|".join(
+            ["{:7s}".format(""), "{:10s}".format("Loss")] +
+            ["{:10s}".format(m.name.replace("training_", "")) for m in self.trainer.train_metrics])
         train_loss_str = "|".join([
             "{:7s}".format("Train"),
             "{:10s}".format("{:.3f}".format(self.trainer.train_loss.result().numpy()))
         ])
-        train_metrics_str = "|".join([
-            "{:10s}".format("{:.3f}".format(val.result().numpy()))
-            for val in self.trainer.train_metrics.values()
-        ])
+        train_metrics_str = "|".join(
+            ["{:10s}".format("{:.3f}".format(m.result().numpy())) for m in self.trainer.train_metrics])
         valid_loss_str = "|".join([
             "{:7s}".format("Valid"),
             "{:10s}".format("{:.3f}".format(self.trainer.validation_loss.result().numpy()))
         ])
         valid_metrics_str = "|".join([
-            "{:10s}".format("{:.3f}".format(val.result().numpy()))
-            for val in self.trainer.validation_metrics.values()
+            "{:10s}".format("{:.3f}".format(m.result().numpy())) for m in self.trainer.validation_metrics
         ])
         clef.logger.info(header)
         clef.logger.info(train_loss_str + "|" + train_metrics_str)

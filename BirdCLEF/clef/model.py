@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Callable
 
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, Input, GlobalAveragePooling2D, Dense, Dropout
@@ -6,7 +6,7 @@ from tensorflow.keras.layers import Conv2D, Input, GlobalAveragePooling2D, Dense
 
 def create_simple_model(input_shape: Tuple[int, int, int],
                         output_classes: int,
-                        activation: tf.keras.layers.Activation = tf.keras.activations.relu,
+                        activation: Callable = tf.keras.activations.relu,
                         dropout_rate: float = 0.2) -> tf.keras.Model:
     """
     Args:

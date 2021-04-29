@@ -11,7 +11,7 @@ from numba import cuda
 import clef
 
 
-def run_debug(func: Callable[[None], Any]) -> Any:
+def run_debug(func: Callable) -> Any:
     """Start pdb debugger at where the `func` throw Exception.
     """
     try:
@@ -23,7 +23,7 @@ def run_debug(func: Callable[[None], Any]) -> Any:
         pdb.post_mortem(tb)
 
 
-def clear_gpu(gpu_id: int = 0) -> None:
+def clear_gpu(gpu_id: Union[int, List[int]] = 0) -> None:
     """Release gpu memory
     Args:
         gpu_id (int) : GPU of which memory is released.
@@ -85,24 +85,8 @@ def _set_gpu_impl(gpu_id: Union[int, List[int]]) -> None:
         for device in devices:
             tf.config.experimental.set_memory_growth(device, True)
     else:
-        from keras.backend.tensorflow_backend import set_session
-        config = tf.ConfigProto(gpu_options=tf.GPUOptions(
-            visible_device_list=[str(id) for id in gpu_id],  # specify GPU number
-            allow_growth=True))
-        set_session(tf.Session(config=config))
+        from keras.backend.tensorflow_backend import set_session  # type: ignore
+        config = tf.ConfigProto(gpu_options=tf.GPUOptions(  # type: ignore
+            visible_device_list=[str(id) for id in gpu_id], allow_growth=True))
+        set_session(tf.Session(config=config))  # type: ignore
     clef.logger.info("Set visible gpu : {}".format(gpu_id))
-
-
-def run_as_multiprocess(func):
-
-    def run(*args, **kwargs):
-        # Pickle error occured when using mp.apply (or apply_async) instead of mp.Process.
-        p = multiprocessing.Process(target=func, args=args, kwargs=kwargs)
-        try:
-            p.start()
-            p.join()
-            p.close()
-        except:
-            p.terminate()
-
-    return run

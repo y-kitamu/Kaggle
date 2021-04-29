@@ -1,40 +1,45 @@
 import os
+import abc
 import glob
-from typing import Optional, Any, List, Dict, Tuple, Union
+from typing import Any, List, Dict, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 import tensorflow as tf
 
 from clef import config_definitions
 from clef.data import create_dataset_from_tfrecord
-from clef.model import create_simple_model
+from clef.callbacks.checkpoint import ModelCheckPoint
+
+if TYPE_CHECKING:
+    from clef.callbacks.callback_delegate import CallbackDelegate
 
 
-class MnistTask():
+class BaseTask():
 
     loss = "loss"
 
-    def __init__(self,
-                 config: config_definitions.TaskConfig,
-                 logging_dir: str = None,
-                 name: str = None) -> None:
+    def __init__(self, config: config_definitions.TaskConfig, logging_dir: str = None) -> None:
         self.config = config
         self.logging_dir = logging_dir
-        self.name = name
         self.loss_fn = self.create_loss_function()
 
+    @abc.abstractclassmethod
     def create_loss_function(self) -> Any:
-        return tf.keras.losses.sparse_categorical_crossentropy
+        """Return loss function
+        """
 
-    def create_optimizer(self) -> Any:
-        optimizer = tf.keras.optimizers.Adam()
-        return optimizer
+    @abc.abstractclassmethod
+    def create_optimizer(self) -> tf.keras.optimizers.Optimizer:
+        """Return optimizer
+        """
 
     def create_tfrecords(self) -> None:
         pass
 
+    @abc.abstractclassmethod
     def build_model(self) -> tf.keras.Model:
-        return create_simple_model(self.config.input_shape, self.config.output_classes)
+        """Return model
+        """
 
     def build_inputs(self, is_training: bool) -> tf.data.Dataset:
         config = self.config.train_data if is_training else self.config.validation_data
@@ -42,31 +47,40 @@ class MnistTask():
             os.path.join(config.tfrecords_dir, "{}*.tfrecords".format(config.tfrecords_basename)))
         dataset = create_dataset_from_tfrecord(tfrecords)
         if is_training:
-            dataset = dataset.shuffle(60000).repeat().batch(self.config.batch_size)
+            dataset = dataset.shuffle(self.config.num_data).repeat().batch(self.config.batch_size)
         else:
             dataset = dataset.batch(self.config.batch_size)
         return dataset
 
-    def build_metrics(self, training: bool = True) -> Dict[str, tf.metrics.Metric]:
-        metrics = {
-            "accuracy": tf.metrics.CategoricalAccuracy(),
-            "ce_loss": tf.metrics.CategoricalCrossentropy()
-        }
+    def build_metrics(self, training: bool = True) -> List[tf.metrics.Metric]:
+        prefix = "training_" if training else "validation_"
+        metrics = [
+            tf.metrics.CategoricalAccuracy(prefix + "accuracy"),
+            tf.metrics.CategoricalCrossentropy(prefix + "ce_loss")
+        ]
         return metrics
 
-    def process_metrics(self, metrics: Dict[str, tf.keras.metrics.Metric],
+    def build_callbacks(self) -> "List[CallbackDelegate]":
+        output_dir = "./model"
+        callbacks = [
+            ModelCheckPoint(metric_name="epoch", output_dir=output_dir),
+            ModelCheckPoint(metric_name="validation_accuracy", output_dir=output_dir),
+        ]
+        return callbacks  # type: ignore
+
+    def process_metrics(self, metrics: List[tf.keras.metrics.Metric],
                         labels: Union[tf.Tensor, np.ndarray], outputs: Union[tf.Tensor, np.ndarray],
                         logs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         if metrics:
             labels = tf.one_hot(labels, self.config.output_classes)
-            for metric in metrics.values():
+            for metric in metrics:
                 metric.update_state(labels, outputs)
-            logs.update({m.name: m.result() for m in metrics.values()})
+            logs.update({m.name: m.result() for m in metrics})
         return logs
 
     def train_step(self, inputs: Tuple[Any, Any], model: tf.keras.Model,
                    optimizer: tf.keras.optimizers.Optimizer,
-                   metrics: Dict[str, tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
+                   metrics: List[tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
         """train 1 step.
         Args:
             inputs (tuple) :
@@ -91,7 +105,7 @@ class MnistTask():
         return logs
 
     def validation_step(self, inputs: Tuple[Any, Any], model: tf.keras.Model,
-                        metrics: Dict[str, tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
+                        metrics: List[tf.keras.metrics.Metric]) -> Dict[str, tf.Tensor]:
         """validation 1 step
         Args:
             inputs (tuple) : tuple of (input images, labels).

@@ -1,13 +1,12 @@
 VERSION = (1, 0, 0)
 
-from clef import callbacks
 from clef import utility
 from clef import config_definitions
 from clef import data
 from clef import model
-from clef import task
+from clef import callbacks
+from clef import tasks
 from clef import trainer
-from clef import evaluator
 from clef import controller
 
 import logging
@@ -68,7 +67,7 @@ def enable_logging_to_file(filename: str,
     if remove_old_handler:
         for handler in list(logger.handlers):
             if isinstance(handler, logging.FileHandler):
-                logger.removeHandler(logger)
+                logger.removeHandler(handler)
 
     # add new handler
     dirname = os.path.abspath(os.path.dirname(filename))
