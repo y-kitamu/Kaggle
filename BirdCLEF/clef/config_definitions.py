@@ -2,12 +2,10 @@ from typing import Optional, Tuple
 
 import dataclasses
 
-from official.modeling.hyperparams import base_config
-
 
 @dataclasses.dataclass
-class DataConfig(base_config.Config):
-    name: Optional[str] = None
+class DataConfig:
+    name: str = ""
     is_training: bool = True
     num_data: int = 60000
     tfrecords_dir: str = ""
@@ -15,23 +13,23 @@ class DataConfig(base_config.Config):
 
 
 @dataclasses.dataclass
-class OptimizerConfig(base_config.Config):
+class OptimizerConfig:
     name: Optional[str] = None
     lr: Optional[float] = None
 
 
 @dataclasses.dataclass
-class ModelConfig(base_config.Config):
+class ModelConfig:
     name: Optional[str] = None
 
 
 @dataclasses.dataclass
-class LossConfig(base_config.Config):
+class LossConfig:
     name: Optional[str] = None
 
 
 @dataclasses.dataclass
-class TaskConfig(base_config.Config):
+class TaskConfig:
     model: ModelConfig = ModelConfig()
     optimizer: OptimizerConfig = OptimizerConfig()
     loss: LossConfig = LossConfig()
@@ -45,12 +43,12 @@ class TaskConfig(base_config.Config):
 
 
 @dataclasses.dataclass
-class TrainerConfig(base_config.Config):
+class TrainerConfig:
     pass
 
 
 @dataclasses.dataclass
-class ControllerConfig(base_config.Config):
+class ControllerConfig:
     trainer: TrainerConfig = TrainerConfig()
     task: TaskConfig = TaskConfig()
     strategy: str = "mirrored"

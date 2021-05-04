@@ -6,8 +6,10 @@ from typing import Any, List, Dict, Tuple, Union, TYPE_CHECKING
 import numpy as np
 import tensorflow as tf
 
+import clef
+from clef.constant import PREPROC_DATA_PATH
 from clef import config_definitions
-from clef.data import create_dataset_from_tfrecord
+from clef.data.tfrecords import create_dataset_from_tfrecord
 from clef.callbacks.checkpoint import ModelCheckPoint
 
 if TYPE_CHECKING:
@@ -43,11 +45,10 @@ class BaseTask():
 
     def build_inputs(self, is_training: bool) -> tf.data.Dataset:
         config = self.config.train_data if is_training else self.config.validation_data
-        tfrecords = glob.glob(
-            os.path.join(config.tfrecords_dir, "{}*.tfrecords".format(config.tfrecords_basename)))
+        tfrecords = clef.data.get_tfrecords_files(config)
         dataset = create_dataset_from_tfrecord(tfrecords)
         if is_training:
-            dataset = dataset.shuffle(self.config.num_data).repeat().batch(self.config.batch_size)
+            dataset = dataset.shuffle(config.num_data).repeat().batch(self.config.batch_size)
         else:
             dataset = dataset.batch(self.config.batch_size)
         return dataset

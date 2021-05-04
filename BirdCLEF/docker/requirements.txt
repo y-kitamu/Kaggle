@@ -1,5 +1,4 @@
 tfx
-tf-models-official
 optuna
 logzero
 tqdm
@@ -8,3 +7,4 @@ opencv-python
 numpy
 numba
 mypy
+hydra-core
