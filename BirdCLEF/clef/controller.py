@@ -4,7 +4,7 @@ import tensorflow as tf
 
 if TYPE_CHECKING:
     from clef.trainer import Trainer
-    from clef.config_definitions import ControllerConfig
+    from clef.config.base_definitions import ControllerConfig
 
 
 class Controller(object):

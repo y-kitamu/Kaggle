@@ -8,7 +8,7 @@ from clef.callbacks.callback_list import CallbackList
 
 if TYPE_CHECKING:
     from clef.tasks import BaseTask
-    from clef.config_definitions import TrainerConfig
+    from clef.config.base_definitions import TrainerConfig
 
 
 class Trainer(object):

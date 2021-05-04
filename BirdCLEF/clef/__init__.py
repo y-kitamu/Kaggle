@@ -2,7 +2,7 @@ VERSION = (1, 0, 0)
 
 from clef import constant
 from clef import utility
-from clef import config_definitions
+from clef import config
 from clef import data
 from clef import model
 from clef import callbacks

@@ -8,7 +8,7 @@ import tensorflow as tf
 
 import clef
 from clef.constant import PREPROC_DATA_PATH
-from clef import config_definitions
+from clef.config import base_definitions
 from clef.data.tfrecords import create_dataset_from_tfrecord
 from clef.callbacks.checkpoint import ModelCheckPoint
 
@@ -20,7 +20,7 @@ class BaseTask():
 
     loss = "loss"
 
-    def __init__(self, config: config_definitions.TaskConfig, logging_dir: str = None) -> None:
+    def __init__(self, config: base_definitions.TaskConfig, logging_dir: str = None) -> None:
         self.config = config
         self.logging_dir = logging_dir
         self.loss_fn = self.create_loss_function()

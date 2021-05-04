@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 import tensorflow as tf
 
@@ -18,3 +18,7 @@ class ClefTask(BaseTask):
 
     def create_tfrecords(self) -> None:
         pass
+
+    def create_spectrograms(self, filename) -> List[str]:
+        """`filename`の音声ファイルからスペクトログラムを作成する
+        """

@@ -7,7 +7,7 @@ from clef.constant import PREPROC_DATA_PATH
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from clef.config_definitions import DataConfig
+    from clef.config.base_definitions import DataConfig
 
 
 def get_tfrecords_dirpath(config: DataConfig) -> Path:
