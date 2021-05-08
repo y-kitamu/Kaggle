@@ -14,6 +14,8 @@ import logging
 import os
 import sys
 
+logging.getLogger().setLevel(logging.DEBUG)
+
 LOGGER_NAME = __name__
 DEFAULT_LOGLEVEL = logging.DEBUG
 SHORT_FORMATTER = logging.Formatter(

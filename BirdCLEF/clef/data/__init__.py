@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from clef.config.base_definitions import DataConfig
 
 
-def get_tfrecords_dirpath(config: DataConfig) -> Path:
+def get_tfrecords_dirpath(config: "DataConfig") -> "Path":
     """`config`に設定されている値に従って、tfrecords保管用のディレクトリ名を取得する。
     Args:
         config (DataConfig) :
@@ -21,7 +21,7 @@ def get_tfrecords_dirpath(config: DataConfig) -> Path:
     return dirpath
 
 
-def get_tfrecords_files(config: DataConfig) -> List[str]:
+def get_tfrecords_files(config: "DataConfig") -> List[str]:
     """`config`に設定されている値に従って、tfrecordsファイルを取得する
     """
     dirpath = get_tfrecords_dirpath(config)

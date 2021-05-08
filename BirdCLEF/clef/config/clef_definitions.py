@@ -1,3 +1,4 @@
+from typing import Optional
 import dataclasses
 
 from clef.config import base_definitions
@@ -12,3 +13,5 @@ class SpectrogramConfig:
 
 class TaskConfig(base_definitions.TaskConfig):
     spectrogram: SpectrogramConfig = SpectrogramConfig()
+    num_folds: int = 4
+    random_state: Optional[int] = None

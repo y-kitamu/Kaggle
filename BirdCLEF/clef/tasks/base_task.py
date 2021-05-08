@@ -20,9 +20,8 @@ class BaseTask():
 
     loss = "loss"
 
-    def __init__(self, config: base_definitions.TaskConfig, logging_dir: str = None) -> None:
+    def __init__(self, config: base_definitions.TaskConfig) -> None:
         self.config = config
-        self.logging_dir = logging_dir
         self.loss_fn = self.create_loss_function()
 
     @abc.abstractclassmethod
