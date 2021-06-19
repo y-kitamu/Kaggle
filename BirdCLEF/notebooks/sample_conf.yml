@@ -1,0 +1,25 @@
+task:
+  model:
+    name: 'simple'
+  optimizer:
+    name: 'adam'
+    lr: 0.001
+  loss:
+    name: 'categorical_crossentropy'
+  train_data:
+    name: 'mnist'
+    is_training: True
+    tfrecords_dir: "/home/kitamura/work/Kaggle/BirdCLEF/notebooks/"
+    tfrecords_basename: "test_train"
+  validation_data:
+    name: 'mnist'
+    is_training: False
+    tfrecords_dir: "/home/kitamura/work/Kaggle/BirdCLEF/notebooks/"
+    tfrecords_basename: "test_test"
+  input_shape: [28, 28, 1]
+  output_classes: 10
+  batch_size: 600
+  steps_per_epoch: 100
+  epochs: 30
+strategy: "mirrored"
+gpus: [0, 1]

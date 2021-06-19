@@ -1,0 +1,34 @@
+trainer: {}
+task:
+  model:
+    name: null
+  optimizer:
+    name: null
+    lr: null
+  loss:
+    name: null
+  train_data:
+    name: ''
+    is_training: true
+    num_data: 60000
+    tfrecords_dir: ''
+    tfrecords_basename: ''
+  validation_data:
+    name: ''
+    is_training: false
+    num_data: 60000
+    tfrecords_dir: ''
+    tfrecords_basename: ''
+  input_shape: [257, 100, 1]
+  output_classes: 397
+  batch_size: 4
+  steps_per_epoch: 100
+  epochs: 20
+  num_folds: 4
+  random_state: 0
+  spectrogram:
+    num_fft: 512
+    fft_window: 1600
+    fft_stride: 1600
+strategy: mirrored
+gpus: [0]

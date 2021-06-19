@@ -16,3 +16,5 @@ kaggle.json
 build/
 *.whl
 weights/
+*.tfrecords
+*.log

@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import tensorflow as tf
 import numpy as np
@@ -53,7 +53,8 @@ def image_to_pb(image: np.ndarray, label: int) -> tf.train.Example:
     return tf.train.Example(features=tf.train.Features(feature=feature))
 
 
-def parse_single_image(proto_object) -> Tuple[tf.Tensor, tf.Tensor]:
+def parse_single_image(proto_object: Any,
+                       image_dtype: tf.dtypes.DType = tf.uint8) -> Tuple[tf.Tensor, tf.Tensor]:
     """protcol buffer形式のデータを画像に変換
     Args:
         proto_object : A scalar string tensor, a single serialzied example
@@ -70,12 +71,13 @@ def parse_single_image(proto_object) -> Tuple[tf.Tensor, tf.Tensor]:
                                               "image_raw": tf.io.FixedLenFeature([], tf.string)
                                           })
     label = features["label"]
-    image = tf.io.decode_raw(features["image_raw"], tf.uint8)
+    image = tf.io.decode_raw(features["image_raw"], image_dtype)
     image = tf.reshape(image, [features["height"], features["width"], features["depth"]])
     return image, label
 
 
-def create_dataset_from_tfrecord(tfrecords: List[str]) -> tf.data.Dataset:
+def create_dataset_from_tfrecord(tfrecords: List[str],
+                                 image_dtype: tf.dtypes.DType = tf.uint8) -> tf.data.Dataset:
     """tfrecord形式のファイルからtf.data.Dataset objectを作成
     Args:
         tfrecords (list of str) : tfrecord形式のファイル名のリスト
@@ -83,7 +85,7 @@ def create_dataset_from_tfrecord(tfrecords: List[str]) -> tf.data.Dataset:
         dataset (tf.data.Dataset) :
     """
     dataset = tf.data.TFRecordDataset(tfrecords)
-    return dataset.map(parse_single_image)
+    return dataset.map(lambda x: parse_single_image(x, image_dtype))
 
 
 def write_images_to_tfrecord(images: np.ndarray, labels: np.ndarray, record_file: str) -> None:

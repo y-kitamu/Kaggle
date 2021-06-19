@@ -34,7 +34,7 @@ class TaskConfig:
     loss: LossConfig = LossConfig()
     train_data: DataConfig = DataConfig()
     validation_data: DataConfig = DataConfig(is_training=False)
-    input_shape: Tuple[int, int, int] = (28, 28, 1)
+    input_shape: Tuple[int, int, int] = (28, 28, 1)  # [H, W, C]
     output_classes: int = 10
     batch_size: int = 4
     steps_per_epoch: int = 100

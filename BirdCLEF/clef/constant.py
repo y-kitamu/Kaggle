@@ -3,7 +3,7 @@ from pathlib import Path
 TEST_STRIDE_SEC = 5
 AUDIO_HELTZ = 32000
 
-PROJECT_ROOT_PATH = Path(__file__).absolute().parents[2]
+PROJECT_ROOT_PATH = Path(__file__).absolute().parents[1]
 PARAM_PATH = PROJECT_ROOT_PATH / "params"
 DATA_PATH = PROJECT_ROOT_PATH / "data"
 

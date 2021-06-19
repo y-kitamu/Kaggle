@@ -2,6 +2,7 @@ import os
 import pdb
 import traceback
 import sys
+import logging
 import multiprocessing
 from typing import Union, List, Callable, Any
 
@@ -36,6 +37,31 @@ def clear_gpu(gpu_id: Union[int, List[int]] = 0) -> None:
         device.reset()
         cuda.close()
         clef.logger.info("CUDA memory released: GPU {}".format(id))
+
+
+class LogLevel():
+    """指定したloggerのloglevelを指定した値に一時的に変更する
+    Usage:
+    ```python
+    with LogLevel(10, logger):
+        <some operations>
+    ```
+
+    Args:
+        loglevel (int) : 設定するloglevel
+        logger (logging.Logger) : `loglevel`を適用するlogger
+    """
+
+    def __init__(self, loglevel: int, logger: logging.Logger = clef.logger):
+        self.loglevel = loglevel
+        self.logger = logger
+
+    def __enter__(self):
+        self.default_level = self.logger.level
+        self.logger.setLevel(self.loglevel)
+
+    def __exit__(self, ex_type, ex_value, trace):
+        self.logger.setLevel(self.default_level)
 
 
 class GPUInitializer:

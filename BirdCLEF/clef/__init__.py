@@ -1,25 +1,15 @@
-VERSION = (1, 0, 0)
-
-from clef import constant
-from clef import utility
-from clef import config
-from clef import data
-from clef import model
-from clef import callbacks
-from clef import tasks
-from clef import trainer
-from clef import controller
-
 import logging
 import os
 import sys
+
+VERSION = (1, 0, 0)
 
 logging.getLogger().setLevel(logging.DEBUG)
 
 LOGGER_NAME = __name__
 DEFAULT_LOGLEVEL = logging.DEBUG
 SHORT_FORMATTER = logging.Formatter(
-    fmt="[%(asctime)s %(levelname)s file %(module)s at line %(lineno)d] %(message)s",
+    fmt="[%(asctime)s %(levelname)s module %(module)s at line %(lineno)d] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
 LONG_FORMATTER = logging.Formatter(
     fmt="[%(asctime)s %(levelname)s %(pathname)s in %(funcName)s at line %(lineno)d] %(message)s")
@@ -86,3 +76,13 @@ def enable_logging_to_file(filename: str,
 
 
 enable_logging_to_stdout()
+
+from clef import constant
+from clef import utility
+from clef import config
+from clef import data
+from clef import model
+from clef import callbacks
+from clef import tasks
+from clef import trainer
+from clef import controller

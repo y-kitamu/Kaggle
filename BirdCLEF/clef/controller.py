@@ -18,8 +18,8 @@ class Controller(object):
         self.strategy = self.get_strategy()
 
     def get_strategy(self) -> tf.distribute.Strategy:
-        if self.config.strategy == "mirrored":
-            return tf.distribute.MirroredStrategy(devices=["GPU:0", "GPU:1"])
+        # if self.config.strategy == "mirrored":
+        #     return tf.distribute.MirroredStrategy(devices=["GPU:0", "GPU:1"])
         return tf.distribute.get_strategy()
 
     def train(self, epochs: Optional[int] = None) -> None:

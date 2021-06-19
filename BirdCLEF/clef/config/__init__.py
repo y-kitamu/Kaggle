@@ -15,7 +15,7 @@ def read_cfg(filename: str) -> DictConfig:
     Return:
         cfg (omegaconf.DictConfig) :
     """
-    cur_dir = os.getcwd()
+    cur_dir = os.path.dirname(__file__)
     file_dir = os.path.dirname(filename)
     rel_file_dir = os.path.relpath(file_dir, cur_dir)
     with initialize(config_path=rel_file_dir):

@@ -1,13 +1,8 @@
-(
- (nil
-  . ((dir-local-docker-config-alists
-      . (
-         ((docker-image-id . "docker_birdclef")
-          (docker-container-name . "py-lsp-docker")
-          (lsp-docker-client-configs
-           . ((:server-id pyright :docker-server-id dpyright :server-command "pyright-langserver --stdio"))))
-         ))
-     )
-  )
- (python-mode . ((yapfify-executable . "docker run -i --workdir=/home/kitamura --user=kitamura --rm docker_birdclef yapf")))
- )
+((python-mode
+  . ((yapfify-executable . "docker run -i --rm docker_birdclef yapf")
+     (lsp-docker+-server-id . pyright)
+     (lsp-docker+-docker-server-id . pyls-docker)
+     (lsp-docker+-server-command . "pyright-langserver --stdio")
+     (lsp-docker+-image-id . "ml_gpu_jupyter")
+     (lsp-docker+-container-name . "py-lsp-docker")
+     (lsp-docker+-path-mappings . (("${HOME}/work/" . "${HOME}/work/"))))))
