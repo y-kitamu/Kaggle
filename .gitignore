@@ -18,3 +18,4 @@ build/
 weights/
 *.tfrecords
 *.log
+Lux/

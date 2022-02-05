@@ -1,0 +1,34 @@
+# change model (effb0->b3)
+title: "v4"
+gpu: 0
+random_state: 0
+n_classes: 5
+image_width: 300
+image_height: 300
+n_channel: 3
+train:
+  earlystop_patience: 5
+  k_fold: 5
+  epochs: 60
+  batch_size: 8
+  val_batch_size: 32
+  initial_lr: 0.0001
+  transfer_model: /home/kitamura/work/Kaggle/weights/efficientnetb3_notop.h5
+  oversample_rate: [5, 3, 3, 1, 3]
+  # oversample_rate: [1, 1, 1, 1, 1]
+  model:
+    is_freeze: True
+    is_finetune: True
+    class_name: efficientnetb3
+    config:
+      dropout_rate: 0.5
+  optimizer:
+    class_name: AdamW
+    config:
+      weight_decay: 1e-5
+      learning_rate: ${train.initial_lr}
+  loss:
+    class_name: CategoricalCrossentropy
+    config:
+      from_logits: True
+      label_smoothing: 0.1

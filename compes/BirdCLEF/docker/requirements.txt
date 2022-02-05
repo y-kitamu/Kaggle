@@ -1,0 +1,11 @@
+tfx
+optuna
+logzero
+tqdm
+matplotlib
+opencv-python
+numpy
+numba
+mypy
+hydra-core
+pytest

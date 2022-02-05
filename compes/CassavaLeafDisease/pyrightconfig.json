@@ -1,0 +1,5 @@
+{
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "reportGeneralTypeIssues": "warning"
+}

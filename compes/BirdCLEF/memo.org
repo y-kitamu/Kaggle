@@ -1,0 +1,39 @@
+#+Title: BirdCLEF memo
+#+Author: Y. Kitamu
+#+OPTIONS: num:t
+
+* Dataset
+** sound data
+データはすべて32kHzにdown sampleされている。
+- train_short_audio :
+  xenocanto.orgから拾ってきた音声
+- train_soundscapes :
+  testに似た音声。10分程度
+- test_soundscapes : submit時には10分程度の音声が80個くらい評価される。
+  ファイル名は収録された日時も含まれており、判断の手助けになるかも
+
+** text data
+評価はf1-score.5秒ごと間隔のwindowで鳴き声判別する。
+- test.csv :
+- train_metadata.csv :
+- train_soundscape_labels.csv :
+- sample_submission.csv :
+
+* 方針
+- まずはspectrogramでcnn
+- その後、データ拡張 or metadataも組み込む?
+- 特徴量見てドメイン汎化?
+
+* 検討項目
+- データをスペクトルグラムに変換する方法の違いによる精度の違いはあるのか?
+- データクレンジング
+  - 元データから鳥が鳴いている部分を切り出すには?
+    - 画像処理、信号処理的手法
+    - 深層学習的方針
+
+* memo
+** データセット可視化
+- クラス数(鳥の種類) : 397種 (train_metadata_csv, short audio dirの数)
+** sftf (short time fourier transform) の入出力は?
+ tfio.experimental.audio.spectrogramで指定する引数と出力サイズの関係は?
+ - [frames, nfft / 2 + 1] が出力size
