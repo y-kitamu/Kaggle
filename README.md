@@ -1,13 +1,3 @@
-# Kaggle competitions
+# Kaggle
+Kaggle competition codes and implementation of papers.
 
-## Contents
-- Melanoma Classification
-- Cassava Leaf Diesease Classification
-
-## Git commit prefixes
-- chore:
-- docs:
-- feat: 
-- exp:
-- refactor:
-- fix:

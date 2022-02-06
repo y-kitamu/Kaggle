@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "ykaggle_core"
+version = "0.1.0"
+description = "Common codes for competitions"
+authors = ["y-kitamu"]
+
+[tool.poetry.dependencies]
+python = "^3.7, <3.11"
+tensorflow = "^2.8.0"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pyright]
+include = ["ykaggle_core"]
+exclude = ["**/node_modules",
+    "**/__pycache__",
+    "weights",
+    "compes",
+]
+venvPath = ".venv"

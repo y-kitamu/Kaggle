@@ -19,3 +19,6 @@ weights/
 *.tfrecords
 *.log
 Lux/
+.venv/
+
+poetry.lock
