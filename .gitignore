@@ -22,3 +22,5 @@ Lux/
 .venv/
 
 poetry.lock
+sandbox/
+*.ipynb

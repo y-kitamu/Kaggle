@@ -1,35 +1,29 @@
 [tool.poetry]
-name = "ykaggle_core"
+name = "happy_wheel"
 version = "0.1.0"
-description = "Common codes for competitions"
+description = ""
 authors = ["y-kitamu"]
 
 [tool.poetry.dependencies]
 python = "^3.8, <3.11"
-tensorflow = "^2.8.0"
-pydantic = "^1.9.0"
-black = "^22.1.0"
+ykaggle_core = {path = "../../", develop = true}
 toml = "^0.10.2"
-pandas = "^1.4.0"
 numpy = "^1.22.2"
-ipykernel = "^6.9.0"
-albumentations = "^1.1.0"
+pandas = "^1.4.0"
 opencv-python = "^4.5.5"
-matplotlib = "^3.5.1"
+albumentations = "^1.1.0"
+pydantic = "^1.9.0"
+ipykernel = "^6.9.0"
 
 [tool.poetry.dev-dependencies]
+pytest = "^5.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
-include = ["ykaggle_core"]
-exclude = ["**/node_modules",
-    "**/__pycache__",
-    "weights",
-    "compes",
-]
+include = ["happy_wheel"]
 venvPath = ".venv"
 
 [tool.black]
