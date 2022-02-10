@@ -23,4 +23,4 @@ Lux/
 
 poetry.lock
 sandbox/
-*.ipynb
+iframe_figures/
