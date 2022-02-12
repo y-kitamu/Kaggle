@@ -5,8 +5,7 @@ from pydantic.types import DirectoryPath
 
 
 class BaseTrainConfig(BaseModel):
-    image_width: int
-    image_height: int
+    pass
 
 
 class BaseModelConfig(BaseModel):
@@ -30,8 +29,9 @@ class BaseImageDatasetConfig(BaseModel):
 
 
 class BaseConfig(BaseModel):
+    exp_name: str
     train: BaseTrainConfig
     model: BaseModelConfig
     loss: BaseLossConfig
     optimizer: BaseOptimizerConfig
-    dataset: BaseImageDatasetConfig
+    # dataset: BaseImageDatasetConfig

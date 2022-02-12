@@ -4,6 +4,14 @@ import glob
 import logging
 import os
 import sys
+from pathlib import Path
+from typing import List, Union
+
+import tensorflow as tf
+
+# constants
+PROJECT_ROOT = Path(__file__).parents[1]
+TENSORBOARD_LOG_DIR = PROJECT_ROOT / "logs"
 
 ## Logger settings
 logging.getLogger().setLevel(logging.DEBUG)
@@ -83,5 +91,18 @@ def remove_logfile(logdir, max_save=10):
 
 enable_logging_to_stdout(log_level=logging.DEBUG)
 
+# GPU settings
+def set_gpu(gpu_id: Union[int, List[int]]) -> None:
+    """Set gpus to use."""
+    if isinstance(gpu_id, int):
+        gpu_id = [gpu_id]
+
+    physical_devices = tf.config.list_physical_devices("GPU")
+    devices = [physical_devices[id] for id in gpu_id]
+    tf.config.set_visible_devices(devices, "GPU")
+    for device in devices:
+        tf.config.experimental.set_memory_growth(device, True)
+
+
 # improt modules
-from . import config, models
+from . import config, losses, models, optimizers

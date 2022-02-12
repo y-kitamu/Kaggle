@@ -1,25 +1,25 @@
 """config.py
 """
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import ykaggle_core as ycore
 from pydantic.types import FilePath
 
 
 class TrainConfig(ycore.config.BaseTrainConfig):
-    pass
+    epochs: int
 
 
 class ModelConfig(ycore.config.BaseModelConfig):
-    pass
+    kwargs: Dict[Any, Any] = {}
 
 
 class LossConfig(ycore.config.BaseLossConfig):
-    pass
+    kwargs: Dict[Any, Any] = {}
 
 
 class OptimizerConfig(ycore.config.BaseOptimizerConfig):
-    pass
+    kwargs: Dict[Any, Any] = {}
 
 
 class DatasetConfig(ycore.config.BaseImageDatasetConfig):
@@ -31,4 +31,7 @@ class Config(ycore.config.BaseConfig):
     model: ModelConfig
     loss: LossConfig
     optimizer: OptimizerConfig
-    dataset: DatasetConfig
+    train_dataset: DatasetConfig
+
+    validation_dataset: DatasetConfig
+    test_dataset: DatasetConfig

@@ -18,6 +18,7 @@ matplotlib = "^3.5.1"
 tqdm = "^4.62.3"
 plotly = "^5.6.0"
 ipywidgets = "^7.6.5"
+scikit-learn = "^1.0.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

@@ -1,8 +1,7 @@
-"""dataset.py
+"""dataloader.py
 """
 import random
-from pathlib import Path
-from typing import Generator, Optional, Tuple
+from typing import Generator, Tuple
 
 import albumentations as A
 import cv2
@@ -10,8 +9,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from . import logger
-from .config import DatasetConfig
+from .. import logger
+from ..config import DatasetConfig
 
 SPECIES = [
     "beluga",
@@ -57,14 +56,16 @@ transforms = A.Compose(
 )
 
 
-def build_train_dataloader(params: DatasetConfig, is_validation: bool = False):
+def build_train_dataloader(
+    params: DatasetConfig, is_validation: bool = False
+) -> Tuple[tf.data.Dataset, int]:
     """Build train data loader."""
     data_gen = _TrainDataLoader(params)
     path_ds = tf.data.Dataset.from_generator(
         data_gen,
         output_signature=(
             tf.TensorSpec(shape=(), dtype=tf.string),
-            tf.TensorSpec(shape=(), dtype=tf.int32),
+            tf.TensorSpec(shape=(len(SPECIES)), dtype=tf.int32),
         ),
     )
     ds = path_ds.map(
@@ -73,10 +74,10 @@ def build_train_dataloader(params: DatasetConfig, is_validation: bool = False):
     )
     if not is_validation:
         ds = ds.repeat()
-    return ds.batch(params.batch_size).prefetch(4)
+    return (ds.batch(params.batch_size).prefetch(4), len(data_gen.df))
 
 
-def build_test_dataloader(params: DatasetConfig):
+def build_test_dataloader(params: DatasetConfig) -> tf.data.Dataset:
     """Build test data loader."""
     data_gen = _TestDataLoader(params)
     path_ds = tf.data.Dataset.from_generator(
@@ -109,22 +110,27 @@ def _load_image_impl(
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     if with_preprocess:
         image = _preprocess_image(image, image_height, image_width)
-    return image
+    tensor = tf.convert_to_tensor(image / 255.0, dtype=tf.float32)
+    tensor = tf.image.resize(tensor, size=[image_height, image_width])
+    return tensor
 
 
-def _preprocess_image(img: np.ndarray, image_height: int, image_width: int) -> tf.Tensor:
+def _preprocess_image(img: np.ndarray, image_height: int, image_width: int) -> np.ndarray:
     """Data augmentation for image data"""
     data = {"image": img}
     aug_data = transforms(**data)
     aug_img = aug_data["image"]
-    aug_img = img
-    aug_img = tf.convert_to_tensor(aug_img / 255.0, dtype=tf.float32)
-    aug_img = tf.image.resize(aug_img, size=[image_height, image_width])
     return aug_img
 
 
 class _TrainDataLoader:
-    """Generator for training & validataion data."""
+    """Generator for training & validataion data.
+    Training data must be specified using csv file (`params.label_csv_path`).
+    Training csv file has 2 columns : "image" (basename of image file) and "species" (label).
+
+    Args:
+        params (DatasetConfig):
+    """
 
     def __init__(self, params: DatasetConfig):
         if params.label_csv_path is None:
@@ -142,14 +148,22 @@ class _TrainDataLoader:
         )
         return self.df[is_valid]
 
-    def __call__(self) -> Generator[Tuple[str, int], None, None]:
+    def _one_hot(self, index) -> np.ndarray:
+        onehot = np.zeros(len(SPECIES), dtype=np.float32)
+        onehot[index] = 1
+        return onehot
+
+    def __call__(self) -> Generator[Tuple[str, np.ndarray], None, None]:
         """Create generator which yields image path and gt label.
         Yields:
             (str, int) : tuple of (image file path, label index).
         """
         df = self.df.sample(len(self.df)) if self.params.shuffle else self.df
         for _, row in df.iterrows():
-            yield (str(self.params.input_dir / row.image), SPECIES.index(row.species))
+            yield (
+                str(self.params.input_dir / row.image),
+                self._one_hot(SPECIES.index(row.species)),
+            )
 
 
 class _TestDataLoader:
