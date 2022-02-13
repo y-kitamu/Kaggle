@@ -33,6 +33,6 @@ class WarmUpCosineAnnealing:
         """Calculate learning rate at `epoch`."""
         if epoch <= self.warmup_epoch:
             return self.wamup_lr
-        radian = (epoch - self.warmup_epoch) / self.cycle_epoch
+        radian = ((epoch - self.warmup_epoch) % self.cycle_epoch) * math.pi
         lr = self.min_lr + 0.5 * (self.max_lr - self.min_lr) * (1 + math.cos(radian))
         return lr

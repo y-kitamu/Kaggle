@@ -47,10 +47,10 @@ SPECIES = [
 
 transforms = A.Compose(
     [
-        A.Rotate(limit=40),
-        A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.2),
-        A.ImageCompression(quality_lower=85, quality_upper=100, p=0.5),
-        A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5),
+        A.Rotate(limit=5),
+        A.RandomBrightnessContrast(brightness_limit=0.05, contrast_limit=0.05),
+        # A.ImageCompression(quality_lower=85, quality_upper=100, p=0.5),
+        A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=10, val_shift_limit=10, p=0.5),
         A.HorizontalFlip(),
     ]
 )
@@ -109,18 +109,34 @@ def _load_image_impl(
     image = cv2.imread(img_path.decode())
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     if with_preprocess:
-        image = _preprocess_image(image, image_height, image_width)
-    tensor = tf.convert_to_tensor(image / 255.0, dtype=tf.float32)
+        image = _preprocess_image(image)
+    image = _resize_image(image, image_width, image_height)
+    tensor = tf.convert_to_tensor(image, dtype=tf.float32)
     tensor = tf.image.resize(tensor, size=[image_height, image_width])
     return tensor
 
 
-def _preprocess_image(img: np.ndarray, image_height: int, image_width: int) -> np.ndarray:
+def _preprocess_image(img: np.ndarray) -> np.ndarray:
     """Data augmentation for image data"""
     data = {"image": img}
     aug_data = transforms(**data)
     aug_img = aug_data["image"]
     return aug_img
+
+
+def _resize_image(img: np.ndarray, width: int, height: int) -> np.ndarray:
+    """Resize and padding image."""
+    h, w, _ = img.shape
+    scale = min(height / h, width / w)
+    resized_w = min(int(w * scale), width)
+    resized_h = min(int(h * scale), height)
+    resized = cv2.resize(img, (resized_w, resized_h))
+
+    target = np.zeros((height, width, 3))
+    off_w = random.randint(0, width - resized_w)
+    off_h = random.randint(0, height - resized_h)
+    target[off_h : resized_h + off_h, off_w : resized_w + off_w] = resized
+    return target
 
 
 class _TrainDataLoader:
@@ -150,7 +166,7 @@ class _TrainDataLoader:
 
     def _one_hot(self, index) -> np.ndarray:
         onehot = np.zeros(len(SPECIES), dtype=np.float32)
-        onehot[index] = 1
+        onehot[index] = 1.0
         return onehot
 
     def __call__(self) -> Generator[Tuple[str, np.ndarray], None, None]:

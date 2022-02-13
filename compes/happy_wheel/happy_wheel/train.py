@@ -25,7 +25,7 @@ def create_model(config: happy_wheel.config.Config) -> keras.Model:
     base_model = ycore.models.get_model(config.model.name, **config.model.kwargs)
     inputs = keras.Input(shape=(config.train_dataset.height, config.train_dataset.width, 3))
     x = base_model(inputs)
-    x = keras.layers.Conv2D(len(SPECIES), kernel_size=3)(x)
+    x = keras.layers.Conv2D(config.model.num_output_class, kernel_size=3)(x)
     outputs = keras.layers.GlobalAveragePooling2D(data_format="channels_last")(x)
     model = keras.Model(inputs=inputs, outputs=outputs)
     # setup optimizer and loss
@@ -98,10 +98,10 @@ def run(config: happy_wheel.config.Config):
         epochs=config.train.epochs,
         validation_data=valid_dataloader,
         callbacks=[callbacks],
-        steps_per_epoch=(num_data + config.train_dataset.batch_size - 1)
-        // config.train_dataset.batch_size,
-        # steps_per_epoch=10,
-        # validation_steps=10,
+        # steps_per_epoch=(num_data + config.train_dataset.batch_size - 1)
+        # // config.train_dataset.batch_size,
+        steps_per_epoch=200,
+        validation_steps=100,
     )
 
     logger.info("Finish training")
@@ -114,6 +114,7 @@ def run_cross_validation(
     train_config = TrainConfig(epochs=30)
     model_config = ModelConfig(
         name="efficientnet-b0",
+        num_output_class=len(SPECIES),
         kwargs=dict(
             include_top=False,
             input_shape=(image_height, image_width, 3),
@@ -123,7 +124,7 @@ def run_cross_validation(
     for fold in range(num_cv_fold):
         train_dataset_config = DatasetConfig(
             input_dir=DATA_ROOT / "preprocessed" / "train_images",
-            batch_size=8,
+            batch_size=32,
             width=image_width,
             height=image_height,
             shuffle=True,
@@ -131,7 +132,7 @@ def run_cross_validation(
         )
         val_dataset_config = DatasetConfig(
             input_dir=DATA_ROOT / "preprocessed" / "train_images",
-            batch_size=16,
+            batch_size=64,
             width=image_width,
             height=image_height,
             shuffle=False,
@@ -141,7 +142,7 @@ def run_cross_validation(
             exp_name=f"{base_exp_name}/cv{fold}",
             train=train_config,
             model=model_config,
-            loss=LossConfig(name="categorical_crossentropy"),
+            loss=LossConfig(name="categorical_crossentropy", kwargs=dict(from_logits=True)),
             optimizer=OptimizerConfig(name="adam"),
             train_dataset=train_dataset_config,
             validation_dataset=val_dataset_config,
@@ -154,7 +155,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("HappyWheelTrain")
     parser.add_argument("-e", "--exp_name", default="test")
     parser.add_argument("-g", "--gpu", nargs="+", type=int, default=[0])
+    parser.add_argument("--height", type=int, default=256)
+    parser.add_argument("--width", type=int, default=384)
     args = parser.parse_args()
 
     ycore.set_gpu(args.gpu)
-    run_cross_validation(base_exp_name=args.exp_name)
+    run_cross_validation(
+        base_exp_name=args.exp_name, image_width=args.width, image_height=args.height
+    )

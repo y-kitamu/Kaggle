@@ -12,6 +12,7 @@ class TrainConfig(ycore.config.BaseTrainConfig):
 
 class ModelConfig(ycore.config.BaseModelConfig):
     kwargs: Dict[Any, Any] = {}
+    num_output_class: int
 
 
 class LossConfig(ycore.config.BaseLossConfig):
