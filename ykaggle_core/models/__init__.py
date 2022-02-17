@@ -16,3 +16,6 @@ def get_model(model_name: str, *args, **kwargs) -> keras.Model:
     if model_name in mapping:
         return mapping[model_name](*args, **kwargs)
     raise KeyError(f"No model_name of '{model_name}' found in mapping.")
+
+
+from . import components
