@@ -41,5 +41,6 @@ class ArcFaceLoss(keras.losses.Loss):
         x = tf.math.cos(x)
         x = x * self.scale
 
-        loss = tf.math.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(y_true, x))
+        label = tf.argmax(y_true, axis=1)
+        loss = tf.math.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(label, x))
         return loss

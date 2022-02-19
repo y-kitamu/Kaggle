@@ -109,10 +109,10 @@ def run(config: happy_wheel.config.Config):
         epochs=config.train.epochs,
         validation_data=valid_dataloader,
         callbacks=[callbacks],
-        # steps_per_epoch=(num_data + config.train_dataset.batch_size - 1)
-        # // config.train_dataset.batch_size,
-        steps_per_epoch=200,
-        validation_steps=100,
+        steps_per_epoch=(num_data + config.train_dataset.batch_size - 1)
+        // config.train_dataset.batch_size,
+        # steps_per_epoch=200,
+        # validation_steps=100,
     )
 
     logger.info("Finish training")
