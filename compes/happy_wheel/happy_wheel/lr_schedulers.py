@@ -1,7 +1,5 @@
 """lr_schedulers.py
 """
-
-
 import math
 
 

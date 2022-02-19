@@ -8,15 +8,18 @@
     "kwargs": {
       "include_top": false,
       "input_shape": [
-        512,
-        768,
+        256,
+        384,
         3
       ]
-    }
+    },
+    "num_output_class": 30
   },
   "loss": {
     "name": "categorical_crossentropy",
-    "kwargs": {}
+    "kwargs": {
+      "from_logits": true
+    }
   },
   "optimizer": {
     "name": "adam",
@@ -24,25 +27,25 @@
   },
   "train_dataset": {
     "input_dir": "/home/kitamura/dataset/HappyWheel/preprocessed/train_images",
-    "batch_size": 8,
-    "width": 768,
-    "height": 512,
+    "batch_size": 32,
+    "width": 384,
+    "height": 256,
     "shuffle": true,
     "label_csv_path": "/home/kitamura/dataset/HappyWheel/preprocessed/train_cv0.csv"
   },
   "validation_dataset": {
     "input_dir": "/home/kitamura/dataset/HappyWheel/preprocessed/train_images",
-    "batch_size": 16,
-    "width": 768,
-    "height": 512,
+    "batch_size": 64,
+    "width": 384,
+    "height": 256,
     "shuffle": false,
     "label_csv_path": "/home/kitamura/dataset/HappyWheel/preprocessed/valid_cv0.csv"
   },
   "test_dataset": {
     "input_dir": "/home/kitamura/dataset/HappyWheel/preprocessed/train_images",
-    "batch_size": 16,
-    "width": 768,
-    "height": 512,
+    "batch_size": 64,
+    "width": 384,
+    "height": 256,
     "shuffle": false,
     "label_csv_path": "/home/kitamura/dataset/HappyWheel/preprocessed/valid_cv0.csv"
   }

@@ -6,6 +6,7 @@ from typing import List
 
 import ykaggle_core as ycore
 from tensorflow import keras
+from ykaggle_core.models.components.arcface import ArcFaceLayer
 
 from happy_wheel.config import (Config, DatasetConfig, LossConfig, ModelConfig,
                                 OptimizerConfig, TrainConfig)
@@ -14,8 +15,9 @@ if typing.TYPE_CHECKING:
     from keras.api._v2 import keras
 
 import happy_wheel
-from happy_wheel import DATA_ROOT, RESULT_ROOT, logger
-from happy_wheel.dataset.dataloader import SPECIES, build_train_dataloader
+from happy_wheel import (DATA_ROOT, NUM_INDIVIDUALS, RESULT_ROOT, SPECIES,
+                         logger)
+from happy_wheel.dataset.dataloader import build_train_dataloader
 from happy_wheel.lr_schedulers import WarmUpCosineAnnealing
 
 
@@ -24,20 +26,29 @@ def create_model(config: happy_wheel.config.Config) -> keras.Model:
     # setup model
     base_model = ycore.models.get_model(config.model.name, **config.model.kwargs)
     inputs = keras.Input(shape=(config.train_dataset.height, config.train_dataset.width, 3))
+    # backborne
     x = base_model(inputs)
-    x = keras.layers.Conv2D(config.model.num_output_class, kernel_size=3)(x)
-    outputs = keras.layers.GlobalAveragePooling2D(data_format="channels_last")(x)
-    model = keras.Model(inputs=inputs, outputs=outputs)
+    # species classification branch
+    xs = keras.layers.Conv2D(config.model.num_output_class, kernel_size=3)(x)
+    outputs_species = keras.layers.GlobalAveragePooling2D(
+        data_format="channels_last", name="spec_branch"
+    )(xs)
+    # individual identification branch
+    xi = keras.layers.Conv2D(256, kernel_size=3, activation="relu")(x)
+    xi = keras.layers.GlobalAveragePooling2D(data_format="channels_last")(xi)
+    output_identity = ArcFaceLayer(config.model.num_identity, name="id_branch")(xi)
+    model = keras.Model(inputs=inputs, outputs=[outputs_species, output_identity])
     # setup optimizer and loss
     optimizer = ycore.optimizers.get_optimizer(config.optimizer.name, **config.optimizer.kwargs)
-    loss = ycore.losses.get_loss(config.loss.name, config.loss.kwargs)
+    loss_species = ycore.losses.get_loss(config.loss.name, config.loss.kwargs)
+    loss_identity = ycore.losses.get_loss("arcface")
     # compile
     model.compile(
         optimizer=optimizer,
-        loss=loss,
+        loss=[loss_species, loss_identity],
         metrics=[
-            keras.metrics.CategoricalCrossentropy(**config.loss.kwargs),
-            keras.metrics.CategoricalAccuracy(),
+            keras.metrics.CategoricalCrossentropy(name="loss", **config.loss.kwargs),
+            keras.metrics.CategoricalAccuracy(name="acc"),
         ],
     )
     return model
@@ -108,13 +119,18 @@ def run(config: happy_wheel.config.Config):
 
 
 def run_cross_validation(
-    base_exp_name: str, num_cv_fold: int = 5, image_width: int = 768, image_height: int = 512
+    base_exp_name: str,
+    num_cv_fold: int = 5,
+    image_width: int = 768,
+    image_height: int = 512,
+    batch_size: int = 32,
 ):
     """ """
     train_config = TrainConfig(epochs=30)
     model_config = ModelConfig(
         name="efficientnet-b0",
         num_output_class=len(SPECIES),
+        num_identity=NUM_INDIVIDUALS,
         kwargs=dict(
             include_top=False,
             input_shape=(image_height, image_width, 3),
@@ -124,7 +140,7 @@ def run_cross_validation(
     for fold in range(num_cv_fold):
         train_dataset_config = DatasetConfig(
             input_dir=DATA_ROOT / "preprocessed" / "train_images",
-            batch_size=32,
+            batch_size=batch_size,
             width=image_width,
             height=image_height,
             shuffle=True,
@@ -132,7 +148,7 @@ def run_cross_validation(
         )
         val_dataset_config = DatasetConfig(
             input_dir=DATA_ROOT / "preprocessed" / "train_images",
-            batch_size=64,
+            batch_size=batch_size * 2,
             width=image_width,
             height=image_height,
             shuffle=False,
@@ -157,9 +173,15 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--gpu", nargs="+", type=int, default=[0])
     parser.add_argument("--height", type=int, default=256)
     parser.add_argument("--width", type=int, default=384)
+    parser.add_argument("--batch_size", type=int, default=16)
     args = parser.parse_args()
 
     ycore.set_gpu(args.gpu)
-    run_cross_validation(
-        base_exp_name=args.exp_name, image_width=args.width, image_height=args.height
+
+    ycore.run_debug(
+        run_cross_validation,
+        base_exp_name=args.exp_name,
+        image_width=args.width,
+        image_height=args.height,
+        batch_size=args.batch_size,
     )

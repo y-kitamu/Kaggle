@@ -8,42 +8,10 @@ import cv2
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from happy_wheel.identities import IDENTITIES
 
-from .. import logger
+from .. import NUM_INDIVIDUALS, SPECIES, logger
 from ..config import DatasetConfig
-
-SPECIES = [
-    "beluga",
-    "blue_whale",
-    "bottlenose_dolphin",
-    "bottlenose_dolpin",
-    "brydes_whale",
-    "commersons_dolphin",
-    "common_dolphin",
-    "cuviers_beaked_whale",
-    "dusky_dolphin",
-    "false_killer_whale",
-    "fin_whale",
-    "frasiers_dolphin",
-    "globis",
-    "gray_whale",
-    "humpback_whale",
-    "kiler_whale",
-    "killer_whale",
-    "long_finned_pilot_whale",
-    "melon_headed_whale",
-    "minke_whale",
-    "pantropic_spotted_dolphin",
-    "pilot_whale",
-    "pygmy_killer_whale",
-    "rough_toothed_dolphin",
-    "sei_whale",
-    "short_finned_pilot_whale",
-    "southern_right_whale",
-    "spinner_dolphin",
-    "spotted_dolphin",
-    "white_sided_dolphin",
-]
 
 transforms = A.Compose(
     [
@@ -59,17 +27,28 @@ transforms = A.Compose(
 def build_train_dataloader(
     params: DatasetConfig, is_validation: bool = False
 ) -> Tuple[tf.data.Dataset, int]:
-    """Build train data loader."""
+    """Build train data loader.
+    Args:
+        params (DatasetConfig) :
+        is_validation (bool) :
+    Returns:
+        (Tuple[tf.data.Dataset, int]) : data loader and number of data.
+            data loader yields tuple of (image (4d tensor : [B, H, W, C]), labels (tuple of label)).
+    """
     data_gen = _TrainDataLoader(params)
     path_ds = tf.data.Dataset.from_generator(
         data_gen,
         output_signature=(
             tf.TensorSpec(shape=(), dtype=tf.string),
-            tf.TensorSpec(shape=(len(SPECIES)), dtype=tf.int32),
+            tf.TensorSpec(shape=(len(SPECIES)), dtype=tf.float32),
+            tf.TensorSpec(shape=(NUM_INDIVIDUALS), dtype=tf.float32),
         ),
     )
     ds = path_ds.map(
-        lambda path, label: (_load_image(params, path, not is_validation), label),
+        lambda path, label, identity: (
+            _load_image(params, path, not is_validation),
+            (label, identity),
+        ),
         num_parallel_calls=tf.data.AUTOTUNE,
     )
     if not is_validation:
@@ -164,8 +143,8 @@ class _TrainDataLoader:
         )
         return self.df[is_valid]
 
-    def _one_hot(self, index) -> np.ndarray:
-        onehot = np.zeros(len(SPECIES), dtype=np.float32)
+    def _one_hot(self, index, num_class=len(SPECIES)) -> np.ndarray:
+        onehot = np.zeros(num_class, dtype=np.float32)
         onehot[index] = 1.0
         return onehot
 
@@ -179,6 +158,7 @@ class _TrainDataLoader:
             yield (
                 str(self.params.input_dir / row.image),
                 self._one_hot(SPECIES.index(row.species)),
+                self._one_hot(IDENTITIES.index(row.individual_id), NUM_INDIVIDUALS),
             )
 
 

@@ -3,9 +3,11 @@
 import glob
 import logging
 import os
+import pdb
 import sys
+import traceback
 from pathlib import Path
-from typing import List, Union
+from typing import Any, Callable, List, Union
 
 import tensorflow as tf
 
@@ -102,6 +104,18 @@ def set_gpu(gpu_id: Union[int, List[int]]) -> None:
     tf.config.set_visible_devices(devices, "GPU")
     for device in devices:
         tf.config.experimental.set_memory_growth(device, True)
+
+
+# debug utility
+def run_debug(func: Callable, *args, **kwargs) -> Any:
+    """Start pdb debugger at where the `func` throw Exception."""
+    try:
+        res = func(*args, **kwargs)
+        return res
+    except:
+        extype, value, tb = sys.exc_info()
+        traceback.print_exc()
+        pdb.post_mortem(tb)
 
 
 # improt modules
