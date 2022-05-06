@@ -50,6 +50,7 @@ def create_model(config: happy_wheel.config.Config) -> keras.Model:
             keras.metrics.CategoricalCrossentropy(name="loss", **config.loss.kwargs),
             keras.metrics.CategoricalAccuracy(name="acc"),
         ],
+        loss_weights=[0.0, 1.0],
     )
     return model
 
@@ -158,7 +159,9 @@ def run_cross_validation(
             exp_name=f"{base_exp_name}/cv{fold}",
             train=train_config,
             model=model_config,
-            loss=LossConfig(name="categorical_crossentropy", kwargs=dict(from_logits=True)),
+            loss=LossConfig(
+                name="categorical_crossentropy", kwargs=dict(from_logits=True, label_smoothing=0.1)
+            ),
             optimizer=OptimizerConfig(name="adam"),
             train_dataset=train_dataset_config,
             validation_dataset=val_dataset_config,

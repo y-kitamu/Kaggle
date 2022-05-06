@@ -15,7 +15,7 @@ if typing.TYPE_CHECKING:
     from keras.api._v2 import keras
 
 
-class ArcFaceLoss(keras.losses.Loss):
+class ArcFaceLoss(keras.losses.CategoricalCrossentropy):
     """ArcFace loss. Use with `ykaggle_core.models.components.ArcFaceLayer`.
     Args:
         margin (float) : margin added to gt class prediction. (Unit : radian)
@@ -23,7 +23,7 @@ class ArcFaceLoss(keras.losses.Loss):
     """
 
     def __init__(self, margin: float = 0.5, scale: float = 64.0, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(from_logits=True, **kwargs)
         self.margin = tf.constant(margin, dtype=tf.float32)
         self.scale = tf.constant(scale, dtype=tf.float32)
 
@@ -41,6 +41,5 @@ class ArcFaceLoss(keras.losses.Loss):
         x = tf.math.cos(x)
         x = x * self.scale
 
-        label = tf.argmax(y_true, axis=1)
-        loss = tf.math.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(label, x))
+        loss = super().call(y_true, x)
         return loss
